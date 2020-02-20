@@ -56,7 +56,9 @@ def generate_conf_pairflipper(m, k, gamma):
     row_id = np.arange(k)
     col_id = np.arange(k)
     for i in range(m):
-        diag = np.random.normal(gamma, 0.01)
+        if gamma < 1:
+            gamma = np.random.normal(gamma, 0.01)            
+        diag = np.clip(gamma, 0, 1)
         conf_m = np.eye(k) * diag
         np.random.shuffle(col_id)
         conf_m[row_id, col_id] += (1-diag)
@@ -90,12 +92,12 @@ def generate_labels_weight(y, repeat, conf):
 
     return response, workers_train_label, workers_on_example
 
-def generate_labels_weight_sleepy(y, repeat, conf, y_r1, sleep_rates):
+def generate_labels_weight_sleepy(y, repeat, conf, y_pred, sleep_rates):
     """
     Arguments:
     y: training set labels
     repeat: redundancy
-    y_r1: training set labels in round one
+    y_pred: training set labels in round one
     sleep rates: sleep rate of each user
     """
     n = y.shape[0]
@@ -113,8 +115,41 @@ def generate_labels_weight_sleepy(y, repeat, conf, y_r1, sleep_rates):
         workers_on_example[i] = np.sort(np.random.choice(m, repeat, replace=False)) # One worker can only label on sample once
         for count, worker_id in enumerate(workers_on_example[i]):
             if np.random.random() < sleep_rates[worker_id]:
-                # User sleeps, giving the same label as round one
-                corrupt_label = y_r1[i]
+                # User sleeps, giving the same label as the classifier
+                corrupt_label = y_pred[i]
+            else:
+                corrupt_label = np.random.multinomial(1, conf[worker_id, np.argmax(y[i]), :])
+                assert corrupt_label.sum() == 1
+            response[i, worker_id, :] = corrupt_label
+            workers_train_label['softmax_' + str(count) + '_label'][i] = corrupt_label
+
+    return response, workers_train_label, workers_on_example
+
+def generate_labels_weight_copycat(y, repeat, conf, y_pred, copy_rates):
+    """
+    Arguments:
+    y: training set labels
+    repeat: redundancy
+    y_pred: training set labels in round one
+    copy rates: copy(cheating) rate of each user
+    """
+    n = y.shape[0]
+    m, k = conf.shape[0], conf.shape[1]
+
+    workers_train_label = {}
+    for i in range(repeat):
+        workers_train_label['softmax_' + str(i) + '_label'] = np.zeros((n, k))
+
+    response = np.zeros((n, m, k))
+    workers_on_example = np.zeros((n, repeat), dtype=int) # workers ID per sample
+
+    for i in range(n):
+        # Randomly select #repeat workers
+        workers_on_example[i] = np.sort(np.random.choice(m, repeat, replace=False)) # One worker can only label on sample once
+        for count, worker_id in enumerate(workers_on_example[i]):
+            if np.random.random() < copy_rates[worker_id]:
+                # User is a copycat, copying previous user's label
+                corrupt_label = response[i, worker_id-1, :]
             else:
                 corrupt_label = np.random.multinomial(1, conf[worker_id, np.argmax(y[i]), :])
                 assert corrupt_label.sum() == 1

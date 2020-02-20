@@ -17,13 +17,13 @@ def plot_conf_mat(est_conf, conf):
     Plot estimated and ground truth confusion matrices
     """
     m = conf.shape[0]
-    fig, axes = plt.subplots(nrows=m, ncols=2, figsize=(4, 30))
+    fig, axes = plt.subplots(nrows=m, ncols=2, figsize=(4, 3*m))
     for row, axe in enumerate(axes):
         ax_0, ax_1 = axe
-        ax_0.imshow(est_conf[row], cmap='Blues')
+        ax_0.imshow(est_conf[row], cmap='Blues', vmin=0, vmax=1)
         ax_0.set_title("Estimated CM \nfor worker "+str(row))
         ax_0.axis('off')
-        ax_1.imshow(conf[row], cmap='Blues')
+        ax_1.imshow(conf[row], cmap='Blues', vmin=0, vmax=1)
         ax_1.set_title("Ground Truth CM \nfor worker "+str(row))
         ax_1.axis('off')
         

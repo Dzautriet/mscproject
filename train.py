@@ -70,9 +70,9 @@ def accuracy(pred, targets):
     acc = num_correct.float() / targets.size(0)
     return acc
 
-def call_train(X_train, y_train_corrupt, X_vali, y_vali_corrupt, y_vali, X_test, y_test, use_pretrained=False, model=None, use_aug=False):
+def call_train(X_train, valid_range, y_train_corrupt, X_vali, y_vali_corrupt, y_vali, X_test, y_test, use_pretrained=False, model=None, use_aug=False):
     batch_size = 128
-    epochs = 20
+    epochs = 50
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     patience = 20
     learning_rate = 0.01
@@ -84,7 +84,7 @@ def call_train(X_train, y_train_corrupt, X_vali, y_vali_corrupt, y_vali, X_test,
     # Data augmentation for CIFAR-10
     transforms_train = transforms.Compose([
         transforms.ToPILImage(),
-        transforms.RandomCrop(32, padding=4),
+        transforms.RandomCrop(32, padding=4),       
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
@@ -95,7 +95,8 @@ def call_train(X_train, y_train_corrupt, X_vali, y_vali_corrupt, y_vali, X_test,
     ])
     
     # Create data loader
-    X_train_tensor = torch.tensor(X_train, dtype=torch.float)
+    X_train_tensor = torch.tensor(X_train[valid_range], dtype=torch.float)
+    X_train_tensor_pred = torch.tensor(X_train, dtype=torch.float)
     y_train_tensor = torch.tensor(y_train_corrupt, dtype=torch.float)
     X_vali_tensor = torch.tensor(X_vali, dtype=torch.float)
     y_vali_corrupt_tensor = torch.tensor(y_vali_corrupt, dtype=torch.float)
@@ -104,13 +105,13 @@ def call_train(X_train, y_train_corrupt, X_vali, y_vali_corrupt, y_vali, X_test,
     y_test_tensor = torch.tensor(y_test, dtype=torch.float)
     if use_aug:
         trainset = MyDataset(tensors=(X_train_tensor, y_train_tensor), transforms=transforms_train)
-        trainset_pred = MyDataset(tensors=(X_train_tensor, y_train_tensor), transforms=transforms_test_vali)
+        trainset_pred = MyDataset(tensors=(X_train_tensor_pred,), transforms=transforms_test_vali)
         vali_corruptset = MyDataset(tensors=(X_vali_tensor, y_vali_corrupt_tensor), transforms=transforms_test_vali)
         valiset = MyDataset(tensors=(X_vali_tensor, y_vali_tensor), transforms=transforms_test_vali)
         testset = MyDataset(tensors=(X_test_tensor, y_test_tensor), transforms=transforms_test_vali)
     else:
         trainset = TensorDataset(X_train_tensor, y_train_tensor)
-        trainset_pred = TensorDataset(X_train_tensor, y_train_tensor)
+        trainset_pred = TensorDataset(X_train_tensor_pred,)
         vali_corruptset = TensorDataset(X_vali_tensor, y_vali_corrupt_tensor)
         valiset = TensorDataset(X_vali_tensor, y_vali_tensor)
         testset = TensorDataset(X_test_tensor, y_test_tensor)
@@ -176,8 +177,8 @@ def call_train(X_train, y_train_corrupt, X_vali, y_vali_corrupt, y_vali, X_test,
     vali_acc = AverageMeter()
     test_acc = AverageMeter()
     with torch.no_grad():
-        for batch_index, (inputs, targets) in enumerate(trainloader_pred):
-            inputs, targets = inputs.to(device), targets.to(device)
+        for batch_index, (inputs,) in enumerate(trainloader_pred):
+            inputs = inputs.to(device)
             outputs = model(inputs)
             pred_train = torch.cat((pred_train, outputs), dim=0)
         for batch_index, (inputs, targets) in enumerate(valiloader):
