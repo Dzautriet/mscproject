@@ -51,11 +51,9 @@ valid_range = np.arange(1000)
 num_busy = 1 # 1 by default
 id_busy = 0 # 0 by default
 copy_rates = np.zeros(m)
-# copy_rates[1:] = np.random.normal(loc=0.5, scale=0.01, size=1)
 copy_rates[1:] = 0.4
 
 conf_b = generate_conf_pairflipper(num_busy, k, gamma_b)
-# conf = generate_conf_hammerspammer_new(m, k, gamma_c) # CONF changed
 conf = generate_conf_pairflipper(m, k, gamma_c)
 conf[id_busy] = conf_b
 
@@ -79,28 +77,27 @@ est_q_2, est_label_posterior_2, est_conf_2, est_copy_rates = posterior_distribut
 est_q_vali_2, est_label_posterior_vali_2, _, __ = posterior_distribution_2(response_vali, pred_vali, workers_on_example_vali, id_busy)
 print("MBEM labels matched (copy rates incorporated) : {:.4f}".format(correct_rate(y_train[valid_range], est_label_posterior_2)))
 
+# # Train
+# pred_train, pred_vali, vali_acc, test_acc, model = call_train(X_train, valid_range, est_label_posterior, X_vali, est_label_posterior_vali, y_vali, X_test, y_test, use_aug=use_aug)
+# pred_train_2, pred_vali_2, vali_acc_2, test_acc_2, model_2 = call_train(X_train, valid_range, est_label_posterior_2, X_vali, est_label_posterior_vali_2, y_vali, X_test, y_test, use_aug=use_aug)
+# est_q, _, est_conf = posterior_distribution(response, pred_train, workers_on_example)
+# plot_conf_mat(est_conf, conf)
+# est_q_2, _, est_conf_2, __ = posterior_distribution_2(response, pred_train_2, workers_on_example, id_busy)
+# plot_conf_mat(est_conf_2, conf)
 
-
-
-
+#%% Second MBEM iteration
+# # MBEM
+# est_q, est_label_posterior, est_conf = posterior_distribution(response, pred_train, workers_on_example)
+# est_q_vali, est_label_posterior_vali, _ = posterior_distribution(response_vali, pred_vali, workers_on_example_vali)
+# print("MBEM labels matched: {:.4f}".format(correct_rate(y_train[valid_range], est_label_posterior)))
+# # Modified MBEM
+# est_q_2, est_label_posterior_2, est_conf_2, est_copy_rates = posterior_distribution_2(response, pred_train_2, workers_on_example, id_busy)
+# est_q_vali_2, est_label_posterior_vali_2, _, __ = posterior_distribution_2(response_vali, pred_vali_2, workers_on_example_vali, id_busy)
+# print("MBEM labels matched (copy rates incorporated) : {:.4f}".format(correct_rate(y_train[valid_range], est_label_posterior_2)))
 # # Train
 # pred_train, pred_vali, vali_acc, test_acc, model = call_train(X_train, valid_range, est_label_posterior, X_vali, est_label_posterior_vali, y_vali, X_test, y_test, use_aug=use_aug)
 # pred_train_2, pred_vali_2, vali_acc_2, test_acc_2, model_2 = call_train(X_train, valid_range, est_label_posterior_2, X_vali, est_label_posterior_vali_2, y_vali, X_test, y_test, use_aug=use_aug)
 
-# #%%
-# # # MBEM
-# # est_q, est_label_posterior, est_conf = posterior_distribution(response, pred_train, workers_on_example)
-# # est_q_vali, est_label_posterior_vali, _ = posterior_distribution(response_vali, pred_vali, workers_on_example_vali)
-# # print("MBEM labels matched: {:.4f}".format(correct_rate(y_train[valid_range], est_label_posterior)))
-# # # Modified MBEM
-# # est_q_2, est_label_posterior_2, est_conf_2, est_copy_rates = posterior_distribution_2(response, pred_train_2, workers_on_example, id_busy)
-# # est_q_vali_2, est_label_posterior_vali_2, _, __ = posterior_distribution_2(response_vali, pred_vali_2, workers_on_example_vali, id_busy)
-# # print("MBEM labels matched (copy rates incorporated) : {:.4f}".format(correct_rate(y_train[valid_range], est_label_posterior_2)))
-# # # Train
-# # pred_train, pred_vali, vali_acc, test_acc, model = call_train(X_train, valid_range, est_label_posterior, X_vali, est_label_posterior_vali, y_vali, X_test, y_test, use_aug=use_aug)
-# # pred_train_2, pred_vali_2, vali_acc_2, test_acc_2, model_2 = call_train(X_train, valid_range, est_label_posterior_2, X_vali, est_label_posterior_vali_2, y_vali, X_test, y_test, use_aug=use_aug)
-
-# #%%
 # est_q, _, est_conf = posterior_distribution(response, pred_train, workers_on_example)
 # plot_conf_mat(est_conf, conf)
 # est_q_2, _, est_conf_2, __ = posterior_distribution_2(response, pred_train_2, workers_on_example, id_busy)

@@ -1,2 +1,2 @@
-# My Master Project
-Predicting from crowdsourcing labelled data
+# MSc Project
+Crowdsourcing user corrections for supervised learning models.
