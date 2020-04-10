@@ -65,19 +65,22 @@ print("Majority vote labels matched: {:.4f}".format(correct_rate(y_train[valid_r
 pred_train, pred_vali, vali_acc, test_acc, model = call_train(X_train, valid_range, y_train_r1, X_vali, y_vali_r1, y_vali, X_test, y_test, use_aug=use_aug)
 
 #%% Users provided some feedback
-m = 3 # number of workers(users)
+m = 6 # number of workers(users)
 gamma = 0.4
 # class_wise=True
-repeat = m
+repeat = 2
 valid_range = np.arange(50000)
 # sleep_rates = np.zeros(m)
 # sleep_rates[np.random.choice(m, 2)] = 0.5
+num_busy = 1
 copy_rates = np.zeros(m)
-copy_rates[2] = 0.6
+copy_rates[1:4] = np.random.normal(loc=0.5, scale=0.01, size=3)
 
 conf = generate_conf_pairflipper(m, k, gamma)
-response, workers_train_label, workers_on_example = generate_labels_weight_copycat(y_train[valid_range], repeat, conf, pred_train, copy_rates)
-response_vali, _, workers_on_example_vali = generate_labels_weight_copycat(y_vali, repeat, conf, pred_vali, copy_rates)
+# response, workers_train_label, workers_on_example = generate_labels_weight_copycat(y_train[valid_range], repeat, conf, pred_train, copy_rates)
+# response_vali, _, workers_on_example_vali = generate_labels_weight_copycat(y_vali, repeat, conf, pred_vali, copy_rates)
+response, workers_train_label, workers_on_example = generate_labels_weight_sparse_copycat(y_train[valid_range], repeat, conf, copy_rates, num_busy)
+response_vali, _, workers_on_example_vali = generate_labels_weight_sparse_copycat(y_vali, repeat, conf, copy_rates, num_busy)
 
 # Weighted majority vote
 y_train_wmv = np.sum(response, axis=1) / repeat

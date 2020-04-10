@@ -36,7 +36,8 @@ class AverageMeter(object):
         
         
 class MyDataset(Dataset):
-    """TensorDataset with support of transforms.
+    """
+    TensorDataset with support of transforms.
     """
     def __init__(self, tensors, transforms=None):
         assert all(tensors[0].size(0) == tensor.size(0) for tensor in tensors)
@@ -72,7 +73,7 @@ def accuracy(pred, targets):
 
 def call_train(X_train, valid_range, y_train_corrupt, X_vali, y_vali_corrupt, y_vali, X_test, y_test, use_pretrained=False, model=None, use_aug=False):
     batch_size = 128
-    epochs = 50
+    epochs = 500
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     patience = 20
     learning_rate = 0.01
@@ -115,11 +116,11 @@ def call_train(X_train, valid_range, y_train_corrupt, X_vali, y_vali_corrupt, y_
         vali_corruptset = TensorDataset(X_vali_tensor, y_vali_corrupt_tensor)
         valiset = TensorDataset(X_vali_tensor, y_vali_tensor)
         testset = TensorDataset(X_test_tensor, y_test_tensor)
-    trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
-    trainloader_pred = DataLoader(trainset_pred, batch_size=batch_size, shuffle=False)
-    valiloader = DataLoader(valiset, batch_size=batch_size, shuffle=False)
-    vali_corruptloader = DataLoader(vali_corruptset, batch_size=batch_size, shuffle=False)
-    testloader = DataLoader(testset, batch_size=batch_size, shuffle=False)
+    trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True, pin_memory=True)
+    trainloader_pred = DataLoader(trainset_pred, batch_size=batch_size, shuffle=False, pin_memory=True)
+    valiloader = DataLoader(valiset, batch_size=batch_size, shuffle=False, pin_memory=True)
+    vali_corruptloader = DataLoader(vali_corruptset, batch_size=batch_size, shuffle=False, pin_memory=True)
+    testloader = DataLoader(testset, batch_size=batch_size, shuffle=False, pin_memory=True)
     del X_train, y_train_corrupt, X_vali, y_vali_corrupt, y_vali, X_test, y_test, X_train_tensor, y_train_tensor, X_vali_tensor, y_vali_tensor, y_vali_corrupt_tensor, X_test_tensor, y_test_tensor
     
     if not use_pretrained:

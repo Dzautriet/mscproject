@@ -26,5 +26,6 @@ def plot_conf_mat(est_conf, conf):
         ax_1.imshow(conf[row], cmap='Blues', vmin=0, vmax=1)
         ax_1.set_title("Ground Truth CM \nfor worker "+str(row))
         ax_1.axis('off')
-        
+    mse = ((est_conf - conf)**2).mean()
+    print("Mean squared error: {:.5f}".format(mse))
         

@@ -64,3 +64,60 @@ def posterior_distribution(response, pred_train, workers_on_example):
         est_label_posterior[i] /= np.sum(est_label_posterior[i])
 
     return est_q, est_label_posterior, est_conf
+
+def posterior_distribution_2(response, pred_train, workers_on_example, id_busy):
+    """
+    Computes posterior probability distribution of true labels given noisy 
+    label and model prediction
+    Incorporate copycat rates
+    Arguments:
+    response: n * m * k
+    pred_train: n * k
+    workers_on_example: n * repeat
+    id_busy: index of the busy user
+    """
+    n, m, k = response.shape
+    repeat = workers_on_example.shape[1]
+    est_conf = np.zeros((m, k, k))
+    est_copy_rates = np.zeros(m)
+    est_copy_rates[1:] = 0.4 # pretend we know the true copy rates
+    epsilon = 1e-10
+    est_label_posterior = np.zeros((n, k))
+    uniform_v = np.ones(k) / k
+    
+    # Estimate confusion matrix pi
+    for i in range(n):
+        for j in workers_on_example[i]:
+            est_conf[j, np.argmax(pred_train[i]), np.argmax(response[i, j])] += 1
+    # Regularise estimated confusion matrix
+    for i in range(m):
+        for j in range(k):
+            if np.all(est_conf[i, j, :] == 0):
+                est_conf[i, j, :] = 1 / k
+            else:
+                est_conf[i, j, :][est_conf[i, j, :] == 0] = epsilon
+            est_conf[i, j, :] = est_conf[i, j, :] / np.sum(est_conf[i, j, :])
+
+    # Estimate marginal distribution q
+    est_q = np.sum(pred_train, axis=0)
+    est_q /= np.sum(est_q)
+
+    # Estimate posterior distribution P, modified to incorporate copy rates
+    for i in range(n):
+        for j in workers_on_example[i]:
+            if j == id_busy: # Busy user
+                est_label_posterior[i] += np.log(est_conf[j, :, :] @ response[i, j])
+            else: # Copy cat
+                if np.all(response[i, j] == response[i, id_busy]): # Same as the busy user
+                    weighted = est_conf[j, :, :] @ response[i, j] * (1 - est_copy_rates[j])
+                    weighted += uniform_v * est_copy_rates[j]
+                    est_label_posterior[i] += np.log(weighted)
+                else: # Different from the busy user
+                    est_label_posterior[i] += np.log(est_conf[j, :, :] @ response[i, j])
+        est_label_posterior[i] = np.exp(est_label_posterior[i]) * est_q
+        est_label_posterior[i] /= np.sum(est_label_posterior[i])
+
+    return est_q, est_label_posterior, est_conf, est_copy_rates
+    
+    
+    
