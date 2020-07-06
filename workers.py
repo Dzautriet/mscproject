@@ -56,13 +56,11 @@ def generate_conf_pairflipper(m, k, gamma):
     row_id = np.arange(k)
     col_id = np.arange(k)
     for i in range(m):
-        if gamma < 1:
-            diag = np.random.normal(gamma, 0.01)            
-        else:
-            diag = gamma
-        diag = np.clip(diag, 0, 1)
+        diag = np.clip(gamma, 0, 1)
         conf_m = np.eye(k) * diag
         np.random.shuffle(col_id)
+        while np.any(col_id==row_id):
+            np.random.shuffle(col_id) # Ensure no 1 on main diagonal
         conf_m[row_id, col_id] += (1-diag)
         conf[i, :, :] = conf_m
     return conf
@@ -113,6 +111,21 @@ def generate_labels_weight(y, repeat, conf):
             workers_train_label['softmax_' + str(count) + '_label'][i] = corrupt_label
 
     return response, workers_train_label, workers_on_example
+
+# def generate_labels_weight_vec(y, repeat, conf):
+#     """
+#     Generate response: vectorised version
+#     Arguments:
+#     y: training set
+#     repeat: redundancy
+#     conf: confusion matrix
+#     """
+#     n = y.shape[0]
+#     m, k = conf.shape[0], conf.shape[1]
+#     response = np.zeros((n, m, k))
+#     workers_on_example = np.argsort(np.random.rand(n, m),axis=1) # workers ID per sample
+#     workers_on_example = np.sort(workers_on_example[:, :repeat], axis=1)    
+        
 
 def generate_labels_weight_sleepy(y, repeat, conf, y_pred, sleep_rates):
     """
