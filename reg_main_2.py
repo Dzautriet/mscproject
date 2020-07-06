@@ -273,7 +273,7 @@ def plot_acc_std_cr(test_accs, copy_rate_range, title, filename):
     plt.savefig(filename, bbox_inches='tight')
     plt.show()
 
-#%% Filter out copycat's response
+#%% Main
 m = 5
 gamma_b = .30
 gamma_c = .30
