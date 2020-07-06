@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Jun 26 22:44:36 2020
+Created on Mon Jul  6 18:37:32 2020
 
 @author: Zhe Cao
 
 Copycat scenario: systematic comparison
 Reweighting mechanism
+Ablation study
 """
 
 import numpy as np
@@ -73,6 +74,76 @@ class MyDataset(Dataset):
     def __len__(self):
         return self.tensors[0].size(0)
 
+class ConfMatLayer(nn.Module):
+    """
+    Adapated for ablation study
+    """
+    def __init__(self, m, k, est_cr=True, reweight=False, factor=None):
+        super(ConfMatLayer, self).__init__()
+        self.m = m
+        self.est_cr = est_cr # Whether estimate copy rates or not
+        self.reweight = reweight # Whether reweight losses according to copy rates and label counts or not
+        self.factor = factor # reweighting factor that accounts for sparsity
+        w_init = torch.tensor(np.stack([6.*np.eye(k)-5. for i in range(m)]), dtype=torch.float32)
+        theta_init = torch.tensor(np.ones(m) * -5, dtype=torch.float32)
+        self.p = nn.Parameter(w_init, requires_grad=True)
+        if self.est_cr:
+            self.theta = nn.Parameter(theta_init, requires_grad=True)
+    
+    def calc_cm(self):
+        rho = F.softplus(self.p)
+        self.confusion_matrices = rho / rho.sum(axis=-1, keepdims=True)
+        if self.est_cr:
+            self.copyrates = torch.sigmoid(self.theta)
+        else:
+            self.copyrates = torch.tensor(np.zeros(self.m), dtype=torch.float32) # if not, fix copy rates to zeros
+    
+    def trace_norm(self):
+        traces = torch.tensor([torch.trace(cm) for cm in torch.unbind(self.confusion_matrices, axis=0)], requires_grad=True)
+        return traces.mean()
+    
+    def forward(self, labels, logsoftmax):
+        """
+        labels: n * m * k
+        logsoftmax: n * k
+        Works with copy probs
+        """
+        self.calc_cm()            
+        losses_all_users = []
+        for idx, labels_i in enumerate(torch.unbind(labels, axis=1)):
+            preds_true = torch.exp(logsoftmax) # n * k
+            preds_user_intrinsic = torch.matmul(preds_true, self.confusion_matrices[idx, :, :])
+            if idx == 0:
+                # busy user
+                preds_busy = preds_user_intrinsic
+                preds_user = preds_user_intrinsic
+            else:
+                preds_user = preds_busy * self.copyrates[idx] + preds_user_intrinsic * (1 - self.copyrates[idx])
+            preds_clipped = torch.clamp(preds_user, 1e-10, 0.9999999)
+            loss = -labels_i * torch.log(preds_clipped) # n * k
+            loss = loss.sum(axis=1) # n
+            losses_all_users.append(loss)
+        losses_all_users = torch.stack(losses_all_users, axis=1) # n * m
+        has_labels = torch.sum(labels, axis=2) # n * m
+        losses_all_users *= has_labels # n * m
+        
+        if self.reweight:
+            with torch.no_grad():
+                losses_weight = torch.ones(self.m).cuda()
+                if self.reweight == "BOTH":
+                    losses_weight[0] -= self.copyrates[1:].sum()
+                    losses_weight[0] *= self.factor
+                elif self.reweight == "CNT":
+                    losses_weight[0] *= self.factor
+                elif self.reweight == "CP":
+                    losses_weight[0] -= self.copyrates[1:].sum()
+                else:
+                    raise ValueError("Illegal value for reweight!")
+                losses_weight = torch.clamp(losses_weight, 1e-3)
+            losses_all_users *= losses_weight
+        
+        losses_all_users = torch.mean(torch.sum(losses_all_users, axis=1))
+        return losses_all_users
 
 def call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight=True):
     batch_size = 128
@@ -142,7 +213,7 @@ def call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, 
         factor = (redundancy-1) / (m-1)
     else:
         factor = None
-    confusion_matrices_layer = models.ConfMatLayer(m, k, est_cr, reweight, factor)
+    confusion_matrices_layer = ConfMatLayer(m, k, est_cr, reweight, factor)
     confusion_matrices_layer.to(device)
     
     # optimizer = torch.optim.Adam(list(model.parameters())+list(confusion_matrices_layer.parameters()), lr=learning_rate, weight_decay=5e-4)
@@ -230,6 +301,7 @@ def call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, 
         
     return est_conf, est_copyrates, test_acc.avg, mean_cm_diff, mean_cp_diff
         
+    
 def plot_result_std_cr(arrays, copy_rate_range, title, ylabel, filename):
     """
     arrays: num_rep * num_copyrates * 4
@@ -239,11 +311,10 @@ def plot_result_std_cr(arrays, copy_rate_range, title, ylabel, filename):
     std = arrays.std(axis=0)
     lower = std
     upper= std
-    plt.errorbar(x=copy_rate_range, y=avg[:, 0], yerr=[lower[:, 0], upper[:, 0]], label="w/o copy rate est.", fmt='-o')
-    plt.errorbar(x=copy_rate_range, y=avg[:, 1], yerr=[lower[:, 1], upper[:, 1]], label="w/ copy rate est.", fmt='-o')
-    plt.errorbar(x=copy_rate_range, y=avg[:, 2], yerr=[lower[:, 2], upper[:, 2]], label="copy rate est & reweight.", fmt='-o')
-    plt.errorbar(x=copy_rate_range, y=avg[:, 3], yerr=[lower[:, 3], upper[:, 3]], label="majority vote.", fmt='-o')
-    plt.errorbar(x=copy_rate_range, y=avg[:, 4], yerr=[lower[:, 4], upper[:, 4]], label="MBEM.", fmt='-o')
+    plt.errorbar(x=copy_rate_range, y=avg[:, 0], yerr=[lower[:, 0], upper[:, 0]], label="reweighting both", fmt='-o')
+    plt.errorbar(x=copy_rate_range, y=avg[:, 1], yerr=[lower[:, 1], upper[:, 1]], label="label count reweighting only", fmt='-o')
+    plt.errorbar(x=copy_rate_range, y=avg[:, 2], yerr=[lower[:, 2], upper[:, 2]], label="copy prob reweighting only", fmt='-o')
+    plt.errorbar(x=copy_rate_range, y=avg[:, 3], yerr=[lower[:, 3], upper[:, 3]], label="no reweighting", fmt='-o')
     plt.ylim(0.0, None)
     plt.title(title)
     plt.xlabel("Copy probability")
@@ -255,8 +326,8 @@ def plot_result_std_cr(arrays, copy_rate_range, title, ylabel, filename):
 
 #%% Main
 m = 5 # number of users
-gamma_b = .30 # skill level of the busy user
-gamma_c = .30 # skill level of the other users
+gamma_b = .35 # skill level of the busy user
+gamma_c = .35 # skill level of the other users
 repeat = 2 # redundancy
 valid_range = np.arange(50000)
 num_busy = 1 # 1 by default, starting from No.0
@@ -264,12 +335,12 @@ copy_rates = np.zeros(m)
 copy_ids = np.arange(1, 2) # user no.1 is the copycat
 copy_rate_range = np.arange(0.1, 1.0, 0.2)
 num_rep = 5 # repetition
-test_accs = np.zeros((num_rep, len(copy_rate_range), 5)) # five algorithms to compare
-conf_errors = np.zeros((num_rep, len(copy_rate_range), 5))
-cp_errors = np.zeros((num_rep, len(copy_rate_range), 5))
+test_accs = np.zeros((num_rep, len(copy_rate_range), 4)) # four algorithms to compare
+conf_errors = np.zeros((num_rep, len(copy_rate_range), 4))
+cp_errors = np.zeros((num_rep, len(copy_rate_range), 4))
 
 title = "Redundancy:{}, skill level: {}".format(repeat, gamma_c)
-filename = "Copyrate_layer_lossreweight_r_{}_g_{}_5comp".format(repeat, gamma_c).replace('.', '')
+filename = "Copyrate_layer_lossreweight_r_{}_g_{}_ablation".format(repeat, gamma_c).replace('.', '')
 
 for rep in range(num_rep):
     print("Repetition: {}".format(rep))
@@ -283,47 +354,39 @@ for rep in range(num_rep):
         labels_train, _, workers_on_example = generate_labels_weight_sparse_copycat(y_train[valid_range], repeat, conf, copy_rates, num_busy)
         labels_vali, _, workers_on_example_vali = generate_labels_weight_sparse_copycat(y_vali, repeat, conf, copy_rates, num_busy)
         
-        # 1. Estimating copy rates & reweighting
+        # 1. Reweighting according to both label counts and estimated copy probs
         est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
-                                                        use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight=True)
-        test_accs[rep, i, 2] = test_acc
-        conf_errors[rep, i, 2] = conf_error
-        cp_errors[rep, i, 2] = cp_error
+                                                        use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight="BOTH")
+        test_accs[rep, i, 0] = test_acc
+        conf_errors[rep, i, 0] = conf_error
+        cp_errors[rep, i, 0] = cp_error
         print(est_copyrates)
         plot_conf_mat(est_conf, conf)
         
         print("--------")
-        # 2. Estimating copy rates
+        # 2. Reweighing according to label counts only
         est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
-                                                        use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight=False)
+                                                        use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight="CNT")
         test_accs[rep, i, 1] = test_acc
         conf_errors[rep, i, 1] = conf_error
         cp_errors[rep, i, 1] = cp_error
         
         print("--------")
-        # 3. not estimating copy rates
+        # 3. Reweghting according to estimated copy probs only
         est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
-                                                        use_pretrained=False, model=None, use_aug=False, est_cr=False, reweight=False)
-        test_accs[rep, i, 0] = test_acc
-        conf_errors[rep, i, 0] = conf_error
-        cp_errors[rep, i, 0] = cp_error
+                                                        use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight="CP")
+        test_accs[rep, i, 2] = test_acc
+        conf_errors[rep, i, 2] = conf_error
+        cp_errors[rep, i, 2] = cp_error
         
         print("--------")
-        # 4. & 5. MBEM
-        y_train_wmv = np.sum(labels_train, axis=1) / repeat
-        y_vali_corrupt = np.sum(labels_vali, axis=1) / repeat
-        pred_train, pred_vali, vali_acc, test_acc, model = call_train_mbem(X_train, valid_range, y_train_wmv, X_vali, y_vali_corrupt, y_vali, X_test, y_test, use_aug=use_aug)
+        # 4. No reweighting
+        est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
+                                                        use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight=False)
         test_accs[rep, i, 3] = test_acc
         conf_errors[rep, i, 3] = conf_error
         cp_errors[rep, i, 3] = cp_error
-        for j in range(1):
-            est_q, est_label_posterior, est_conf = posterior_distribution(labels_train, pred_train, workers_on_example)
-            est_q_vali, est_label_posterior_vali, _ = posterior_distribution(labels_vali, pred_vali, workers_on_example_vali)
-            # Train
-            pred_train, pred_vali, vali_acc, test_acc, model = call_train_mbem(X_train, valid_range, est_label_posterior, X_vali, est_label_posterior_vali, y_vali, X_test, y_test, use_aug=use_aug)
-            test_accs[rep, i, 4] = test_acc
-            conf_errors[rep, i, 4] = conf_error
-        cp_errors[rep, i, 4] = cp_error
+  
         
 plot_result_std_cr(test_accs, copy_rate_range, title=title, ylabel="Test accuracy", filename=filename)
 plot_result_std_cr(cp_errors, copy_rate_range, title=title, ylabel="Copy probability estimation error", filename=filename+"_cperror")

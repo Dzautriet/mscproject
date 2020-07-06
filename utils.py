@@ -33,6 +33,7 @@ def plot_conf_mat(est_conf, conf):
     # print("Mean squared error: {:.5f}".format(mse))
     mean_diff = np.mean([np.linalg.norm(est_conf[i] - conf[i]) for i in range(m)])
     print("Mean CM est error: {:.4f}.".format(mean_diff))
+    return mean_diff
     
 def plot_cp(est_copyrates, copy_rates):
     """

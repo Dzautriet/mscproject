@@ -120,3 +120,21 @@ class ConfMatLayer(nn.Module):
         
         losses_all_users = torch.mean(torch.sum(losses_all_users, axis=1))
         return losses_all_users
+    
+class CNN_CIFAR(nn.Module):
+    """
+    ResNet Wrapper
+    """
+    def __init__(self, precnn, num_classes=10):
+        super(CNN_CIFAR, self).__init__()
+        self.last_in = precnn.fc.in_features # 512 for ResNet18, 2048 for ResNet50
+        self.precnn = nn.Sequential(*list(precnn.children())[:-1])
+        self.fc = nn.Linear(self.last_in, num_classes, bias=True) # Replace the last fc
+        self.logsoftmax = nn.LogSoftmax(dim=1)
+        
+    def forward(self, x):
+        x = self.precnn(x)
+        x = torch.flatten(x, 1)
+        output = self.fc(x)
+        output = self.logsoftmax(output)
+        return output
