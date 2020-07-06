@@ -232,7 +232,7 @@ def call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, 
 
 def plot_acc_cr(test_accs, copy_rate_range, title, filename):
     """
-    test_accs: num_rep * num_copyrates * 2
+    test_accs: num_rep * num_copyrates * 5
     min & max
     """
     avg = test_accs.mean(axis=0)
@@ -255,7 +255,7 @@ def plot_acc_cr(test_accs, copy_rate_range, title, filename):
     
 def plot_acc_std_cr(test_accs, copy_rate_range, title, filename):
     """
-    test_accs: num_rep * num_copyrates * 2
+    test_accs: num_rep * num_copyrates * 5
     standard deviation
     """
     avg = test_accs.mean(axis=0)
