@@ -2,8 +2,8 @@
 
 Z to J: 
 Please
-- download data from 
-- put `X.npy` and 'y.npy` in `mnist/`
-- run reg_main_2.py to reproduce results.
+- download data from [here](https://drive.google.com/drive/folders/1LiEqIyZbTOmNKRDHgt-qxTQgyGkJl0Jn?usp=sharing);
+- Save them as `./mnist/X.npy` and `./mnist/y.npy`;
+- run `reg_main_2.py` to reproduce results.
 
 Good luck!
