@@ -274,18 +274,17 @@ def plot_acc_std_cr(test_accs, copy_rate_range, title, filename):
     plt.show()
 
 #%% Main
-m = 5
-gamma_b = .30
-gamma_c = .30
-repeat = 2
+m = 5 # number of users
+gamma_b = .30 # skill level of the busy user
+gamma_c = .30 # skill level of the other users
+repeat = 2 # redundancy
 valid_range = np.arange(50000)
 num_busy = 1 # 1 by default, starting from No.0
 copy_rates = np.zeros(m)
-copy_ids = np.arange(1, 2) # No.1 is the copycat
+copy_ids = np.arange(1, 2) # user no.1 is the copycat
 copy_rate_range = np.arange(0.1, 1.0, 0.2)
-# copy_rate_range = np.arange(0.0, 0.2, 0.2)
 num_rep = 5 # repetition
-test_accs = np.zeros((num_rep, len(copy_rate_range), 5))
+test_accs = np.zeros((num_rep, len(copy_rate_range), 5)) # five algorithms to compare
 
 title = "Redundancy:{}, skill level: {}".format(repeat, gamma_c)
 filename = "Copyrate_layer_lossreweight_r_{}_g_{}_5comp".format(repeat, gamma_c).replace('.', '')
