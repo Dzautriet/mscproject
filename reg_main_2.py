@@ -265,6 +265,8 @@ def plot_acc_std_cr(test_accs, copy_rate_range, title, filename):
     plt.errorbar(x=copy_rate_range, y=avg[:, 0], yerr=[lower[:, 0], upper[:, 0]], label="w/o copy rate est.", fmt='-o')
     plt.errorbar(x=copy_rate_range, y=avg[:, 1], yerr=[lower[:, 1], upper[:, 1]], label="w/ copy rate est.", fmt='-o')
     plt.errorbar(x=copy_rate_range, y=avg[:, 2], yerr=[lower[:, 2], upper[:, 2]], label="copy rate est & reweight.", fmt='-o')
+    plt.errorbar(x=copy_rate_range, y=avg[:, 3], yerr=[lower[:, 3], upper[:, 3]], label="majority vote.", fmt='-o')
+    plt.errorbar(x=copy_rate_range, y=avg[:, 4], yerr=[lower[:, 4], upper[:, 4]], label="MBEM.", fmt='-o')
     plt.ylim(min(0.95, test_accs.min()-0.01), 1.01)
     plt.title(title)
     plt.xlabel("Copy rate")
