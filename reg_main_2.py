@@ -74,7 +74,7 @@ class MyDataset(Dataset):
         return self.tensors[0].size(0)
 
 
-def call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight=True):
+def call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, conf, copy_rates, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight=True):
     batch_size = 128
     epochs = 100
     _, m, k = labels_train.shape
@@ -244,7 +244,7 @@ def plot_result_std_cr(arrays, copy_rate_range, title, ylabel, filename):
     plt.errorbar(x=copy_rate_range, y=avg[:, 2], yerr=[lower[:, 2], upper[:, 2]], label="copy rate est & reweight.", fmt='-o')
     plt.errorbar(x=copy_rate_range, y=avg[:, 3], yerr=[lower[:, 3], upper[:, 3]], label="majority vote.", fmt='-o')
     plt.errorbar(x=copy_rate_range, y=avg[:, 4], yerr=[lower[:, 4], upper[:, 4]], label="MBEM.", fmt='-o')
-    plt.ylim(0.0, None)
+    plt.ylim(0.0, arrays.max()+0.01)
     plt.title(title)
     plt.xlabel("Copy probability")
     plt.ylabel(ylabel)
@@ -254,77 +254,78 @@ def plot_result_std_cr(arrays, copy_rate_range, title, ylabel, filename):
     plt.show()
 
 #%% Main
-m = 5 # number of users
-gamma_b = .30 # skill level of the busy user
-gamma_c = .30 # skill level of the other users
-repeat = 2 # redundancy
-valid_range = np.arange(50000)
-num_busy = 1 # 1 by default, starting from No.0
-copy_rates = np.zeros(m)
-copy_ids = np.arange(1, 2) # user no.1 is the copycat
-copy_rate_range = np.arange(0.1, 1.0, 0.2)
-num_rep = 5 # repetition
-test_accs = np.zeros((num_rep, len(copy_rate_range), 5)) # five algorithms to compare
-conf_errors = np.zeros((num_rep, len(copy_rate_range), 5))
-cp_errors = np.zeros((num_rep, len(copy_rate_range), 5))
-
-title = "Redundancy:{}, skill level: {}".format(repeat, gamma_c)
-filename = "Copyrate_layer_lossreweight_r_{}_g_{}_5comp".format(repeat, gamma_c).replace('.', '')
-
-for rep in range(num_rep):
-    print("Repetition: {}".format(rep))
-    for i, copy_rate_value in enumerate(copy_rate_range):
-        copy_rates[copy_ids] = copy_rate_value
-        print("----------------")
-        print("Copy rates: {}".format(copy_rates))
-        conf_b = generate_conf_pairflipper(1, k, gamma_b)
-        conf = generate_conf_pairflipper(m, k, gamma_c)
-        conf[:1] = conf_b
-        labels_train, _, workers_on_example = generate_labels_weight_sparse_copycat(y_train[valid_range], repeat, conf, copy_rates, num_busy)
-        labels_vali, _, workers_on_example_vali = generate_labels_weight_sparse_copycat(y_vali, repeat, conf, copy_rates, num_busy)
-        
-        # 1. Estimating copy rates & reweighting
-        est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
-                                                        use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight=True)
-        test_accs[rep, i, 2] = test_acc
-        conf_errors[rep, i, 2] = conf_error
-        cp_errors[rep, i, 2] = cp_error
-        print(est_copyrates)
-        plot_conf_mat(est_conf, conf)
-        
-        print("--------")
-        # 2. Estimating copy rates
-        est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
-                                                        use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight=False)
-        test_accs[rep, i, 1] = test_acc
-        conf_errors[rep, i, 1] = conf_error
-        cp_errors[rep, i, 1] = cp_error
-        
-        print("--------")
-        # 3. not estimating copy rates
-        est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
-                                                        use_pretrained=False, model=None, use_aug=False, est_cr=False, reweight=False)
-        test_accs[rep, i, 0] = test_acc
-        conf_errors[rep, i, 0] = conf_error
-        cp_errors[rep, i, 0] = cp_error
-        
-        print("--------")
-        # 4. & 5. MBEM
-        y_train_wmv = np.sum(labels_train, axis=1) / repeat
-        y_vali_corrupt = np.sum(labels_vali, axis=1) / repeat
-        pred_train, pred_vali, vali_acc, test_acc, model = call_train_mbem(X_train, valid_range, y_train_wmv, X_vali, y_vali_corrupt, y_vali, X_test, y_test, use_aug=use_aug)
-        test_accs[rep, i, 3] = test_acc
-        conf_errors[rep, i, 3] = conf_error
-        cp_errors[rep, i, 3] = cp_error
-        for j in range(1):
-            est_q, est_label_posterior, est_conf = posterior_distribution(labels_train, pred_train, workers_on_example)
-            est_q_vali, est_label_posterior_vali, _ = posterior_distribution(labels_vali, pred_vali, workers_on_example_vali)
-            # Train
-            pred_train, pred_vali, vali_acc, test_acc, model = call_train_mbem(X_train, valid_range, est_label_posterior, X_vali, est_label_posterior_vali, y_vali, X_test, y_test, use_aug=use_aug)
-            test_accs[rep, i, 4] = test_acc
-            conf_errors[rep, i, 4] = conf_error
-        cp_errors[rep, i, 4] = cp_error
-        
-plot_result_std_cr(test_accs, copy_rate_range, title=title, ylabel="Test accuracy", filename=filename)
-plot_result_std_cr(cp_errors, copy_rate_range, title=title, ylabel="Copy probability estimation error", filename=filename+"_cperror")
-plot_result_std_cr(conf_errors, copy_rate_range, title=title, ylabel="Confusion matrix estimation error", filename=filename+"_conferror")
+if __name__ == "__main__":
+    m = 5 # number of users
+    gamma_b = .30 # skill level of the busy user
+    gamma_c = .30 # skill level of the other users
+    repeat = 2 # redundancy
+    valid_range = np.arange(50000)
+    num_busy = 1 # 1 by default, starting from No.0
+    copy_rates = np.zeros(m)
+    copy_ids = np.arange(1, 2) # user no.1 is the copycat
+    copy_rate_range = np.arange(0.1, 1.0, 0.2)
+    num_rep = 5 # repetition
+    test_accs = np.zeros((num_rep, len(copy_rate_range), 5)) # five algorithms to compare
+    conf_errors = np.zeros((num_rep, len(copy_rate_range), 5))
+    cp_errors = np.zeros((num_rep, len(copy_rate_range), 5))
+    
+    title = "Redundancy:{}, skill level: {}".format(repeat, gamma_c)
+    filename = "Copyrate_layer_lossreweight_r_{}_g_{}_5comp".format(repeat, gamma_c).replace('.', '')
+    
+    for rep in range(num_rep):
+        print("Repetition: {}".format(rep))
+        for i, copy_rate_value in enumerate(copy_rate_range):
+            copy_rates[copy_ids] = copy_rate_value
+            print("----------------")
+            print("Copy rates: {}".format(copy_rates))
+            conf_b = generate_conf_pairflipper(1, k, gamma_b)
+            conf = generate_conf_pairflipper(m, k, gamma_c)
+            conf[:1] = conf_b
+            labels_train, _, workers_on_example = generate_labels_weight_sparse_copycat(y_train[valid_range], repeat, conf, copy_rates, num_busy)
+            labels_vali, _, workers_on_example_vali = generate_labels_weight_sparse_copycat(y_vali, repeat, conf, copy_rates, num_busy)
+            
+            # 1. Estimating copy rates & reweighting
+            est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
+                                                            conf, copy_rates, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight=True)
+            test_accs[rep, i, 2] = test_acc
+            conf_errors[rep, i, 2] = conf_error
+            cp_errors[rep, i, 2] = cp_error
+            print(est_copyrates[1:])
+            plot_conf_mat(est_conf, conf)
+            
+            print("--------")
+            # 2. Estimating copy rates
+            est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
+                                                            conf, copy_rates, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight=False)
+            test_accs[rep, i, 1] = test_acc
+            conf_errors[rep, i, 1] = conf_error
+            cp_errors[rep, i, 1] = cp_error
+            
+            print("--------")
+            # 3. not estimating copy rates
+            est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
+                                                            conf, copy_rates, use_pretrained=False, model=None, use_aug=False, est_cr=False, reweight=False)
+            test_accs[rep, i, 0] = test_acc
+            conf_errors[rep, i, 0] = conf_error
+            cp_errors[rep, i, 0] = cp_error
+            
+            print("--------")
+            # 4. & 5. MBEM
+            y_train_wmv = np.sum(labels_train, axis=1) / repeat
+            y_vali_corrupt = np.sum(labels_vali, axis=1) / repeat
+            pred_train, pred_vali, vali_acc, test_acc, model = call_train_mbem(X_train, valid_range, y_train_wmv, X_vali, y_vali_corrupt, y_vali, X_test, y_test, use_aug=use_aug)
+            test_accs[rep, i, 3] = test_acc
+            conf_errors[rep, i, 3] = conf_error
+            cp_errors[rep, i, 3] = cp_error
+            for j in range(1):
+                est_q, est_label_posterior, est_conf = posterior_distribution(labels_train, pred_train, workers_on_example)
+                est_q_vali, est_label_posterior_vali, _ = posterior_distribution(labels_vali, pred_vali, workers_on_example_vali)
+                # Train
+                pred_train, pred_vali, vali_acc, test_acc, model = call_train_mbem(X_train, valid_range, est_label_posterior, X_vali, est_label_posterior_vali, y_vali, X_test, y_test, use_aug=use_aug)
+                test_accs[rep, i, 4] = test_acc
+                conf_errors[rep, i, 4] = conf_error
+            cp_errors[rep, i, 4] = cp_error
+            
+    plot_result_std_cr(test_accs, copy_rate_range, title=title, ylabel="Test accuracy", filename=filename)
+    plot_result_std_cr(cp_errors, copy_rate_range, title=title, ylabel="Copy probability estimation error", filename=filename+"_cperror")
+    plot_result_std_cr(conf_errors, copy_rate_range, title=title, ylabel="Confusion matrix estimation error", filename=filename+"_conferror")
