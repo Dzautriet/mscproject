@@ -76,7 +76,7 @@ class MyDataset(Dataset):
 
 class ConfMatLayer(nn.Module):
     """
-    Adapated for ablation study
+    Adapted for ablation study
     """
     def __init__(self, m, k, est_cr=True, reweight=False, factor=None):
         super(ConfMatLayer, self).__init__()
