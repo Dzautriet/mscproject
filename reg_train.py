@@ -17,7 +17,6 @@ from torch.utils.data import TensorDataset, Dataset, DataLoader
 import models
 from utils import *
     
-    
 def call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, conf, copy_rates, two_stage=True, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight=True):
     batch_size = 128
     epochs = 100
