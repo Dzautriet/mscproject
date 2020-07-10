@@ -22,7 +22,6 @@ from train import call_train as call_train_mbem
 from MBEM import posterior_distribution
 import models
 import gc
-# %matplotlib inline
 
 #%% Load cifar-10 data
 # X = np.load("./cifar10/X.npy")
@@ -157,6 +156,7 @@ def call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, 
         vali_loss = AverageMeter()
         for batch_index, (inputs, labels) in enumerate(trainloader):
             inputs, labels = inputs.to(device), labels.to(device)
+            #%% Ordinary grad update
             optimizer.zero_grad()
             optimizer_cm.zero_grad()
             log_softmax = model(inputs)
@@ -167,6 +167,29 @@ def call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, 
             total_loss.backward()
             optimizer.step()
             optimizer_cm.step()
+            #%% Two-stage grad update
+            # # Stage 1
+            # confusion_matrices_layer.reweight = reweight
+            # optimizer.zero_grad()
+            # log_softmax = model(inputs)
+            # weighted_xe = confusion_matrices_layer.forward(labels, log_softmax)
+            # trace_norm = confusion_matrices_layer.trace_norm()
+            # trace_norm = trace_norm.to(device)
+            # total_loss = weighted_xe + scale * trace_norm
+            # total_loss.backward()
+            # optimizer.step()
+            # # Stage 2
+            # confusion_matrices_layer.reweight = False
+            # optimizer_cm.zero_grad()
+            # log_softmax = model(inputs)
+            # weighted_xe = confusion_matrices_layer.forward(labels, log_softmax)
+            # # trace_norm = confusion_matrices_layer.trace_norm()
+            # # trace_norm = trace_norm.to(device)
+            # # total_loss = weighted_xe + scale * trace_norm
+            # # total_loss.backward()
+            # weighted_xe.backward()
+            # optimizer_cm.step()
+            #%%
             # lr_scheduler.step()
             train_loss.update(total_loss.item(), inputs.size(0))
         # Evaluation on noisy vali
@@ -322,8 +345,8 @@ if __name__ == "__main__":
                 est_q_vali, est_label_posterior_vali, _ = posterior_distribution(labels_vali, pred_vali, workers_on_example_vali)
                 # Train
                 pred_train, pred_vali, vali_acc, test_acc, model = call_train_mbem(X_train, valid_range, est_label_posterior, X_vali, est_label_posterior_vali, y_vali, X_test, y_test, use_aug=use_aug)
-                test_accs[rep, i, 4] = test_acc
-                conf_errors[rep, i, 4] = conf_error
+            test_accs[rep, i, 4] = test_acc
+            conf_errors[rep, i, 4] = conf_error
             cp_errors[rep, i, 4] = cp_error
             
     plot_result_std_cr(test_accs, copy_rate_range, title=title, ylabel="Test accuracy", filename=filename+"_testacc")

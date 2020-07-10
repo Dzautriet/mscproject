@@ -65,10 +65,10 @@ def plot_result_std_cr_gammax(arrays, gamma_range, title, ylabel, filename):
     std = arrays.std(axis=0)
     lower = std
     upper= std
-    plt.errorbar(x=gamma_range, y=avg[:, 0], yerr=[lower[:, 0], upper[:, 0]], label="reweighting both", fmt='-o')
-    plt.errorbar(x=gamma_range, y=avg[:, 1], yerr=[lower[:, 1], upper[:, 1]], label="label count reweighting only", fmt='-o')
-    plt.errorbar(x=gamma_range, y=avg[:, 2], yerr=[lower[:, 2], upper[:, 2]], label="copy prob reweighting only", fmt='-o')
-    plt.errorbar(x=gamma_range, y=avg[:, 3], yerr=[lower[:, 3], upper[:, 3]], label="no reweighting", fmt='-o')
+    plt.errorbar(x=gamma_range, y=avg[:, 0], yerr=[lower[:, 0], upper[:, 0]], capsize=4, label="reweighting both", fmt='--o')
+    plt.errorbar(x=gamma_range, y=avg[:, 1], yerr=[lower[:, 1], upper[:, 1]], capsize=4, label="label count reweighting only", fmt='--o')
+    plt.errorbar(x=gamma_range, y=avg[:, 2], yerr=[lower[:, 2], upper[:, 2]], capsize=4, label="copy prob reweighting only", fmt='--o')
+    plt.errorbar(x=gamma_range, y=avg[:, 3], yerr=[lower[:, 3], upper[:, 3]], capsize=4, label="no reweighting", fmt='--o')
     plt.ylim(0.0, arrays.max()+0.01)
     plt.title(title)
     plt.xlabel("Skill level")
@@ -82,11 +82,11 @@ def plot_result_std_cr_gammax(arrays, gamma_range, title, ylabel, filename):
 if __name__ == "__main__":
     m = 5 # number of users
     gamma_range = np.arange(0.30, 0.501, 0.05)
-    repeat = 4 # redundancy
+    repeat = 2 # redundancy
     valid_range = np.arange(50000)
     num_busy = 1 # 1 by default, starting from No.0
     copy_rates = np.zeros(m)
-    copy_ids = np.arange(1, 3) # user no.1 is the copycat
+    copy_ids = np.arange(1, 2) # user no.1 is the copycat
     copy_rate = 0.5
     copy_rates[copy_ids] = copy_rate
     num_rep = 5 # repetition
@@ -95,7 +95,7 @@ if __name__ == "__main__":
     cp_errors = np.zeros((num_rep, len(gamma_range), 4))
     
     title = "Redundancy:{}, copy probability: {}".format(repeat, copy_rate)
-    filename = "Copyrate_layer_lossreweight_r_{}_c_{}_ablation".format(repeat, copy_rate).replace('.', '')
+    filename = "Copyrate_layer_lossreweight_r_{}_c_{}_ablation_gammax".format(repeat, copy_rate).replace('.', '')
     
     for rep in range(num_rep):
         print("Repetition: {}".format(rep))
@@ -108,7 +108,7 @@ if __name__ == "__main__":
             
             # 1. Reweighting according to both label counts and estimated copy probs
             est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
-                                                            conf, copy_rates, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight="BOTH")
+                                                            conf, copy_rates, two_stage=True, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight="BOTH")
             test_accs[rep, i, 0] = test_acc
             conf_errors[rep, i, 0] = conf_error
             cp_errors[rep, i, 0] = cp_error
@@ -118,7 +118,7 @@ if __name__ == "__main__":
             print("--------")
             # 2. Reweighing according to label counts only
             est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
-                                                            conf, copy_rates, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight="CNT")
+                                                            conf, copy_rates, two_stage=True, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight="CNT")
             test_accs[rep, i, 1] = test_acc
             conf_errors[rep, i, 1] = conf_error
             cp_errors[rep, i, 1] = cp_error
@@ -126,7 +126,7 @@ if __name__ == "__main__":
             print("--------")
             # 3. Reweghting according to estimated copy probs only
             est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
-                                                            conf, copy_rates, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight="CP")
+                                                            conf, copy_rates, two_stage=True, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight="CP")
             test_accs[rep, i, 2] = test_acc
             conf_errors[rep, i, 2] = conf_error
             cp_errors[rep, i, 2] = cp_error
@@ -134,7 +134,7 @@ if __name__ == "__main__":
             print("--------")
             # 4. No reweighting
             est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
-                                                            conf, copy_rates, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight=False)
+                                                            conf, copy_rates, two_stage=True, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight=False)
             test_accs[rep, i, 3] = test_acc
             conf_errors[rep, i, 3] = conf_error
             cp_errors[rep, i, 3] = cp_error

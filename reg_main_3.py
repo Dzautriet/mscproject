@@ -23,7 +23,6 @@ from train import call_train as call_train_mbem
 from MBEM import posterior_distribution
 import models
 import gc
-# %matplotlib inline
 
 #%% Load cifar-10 data
 # X = np.load("./cifar10/X.npy")
@@ -145,7 +144,7 @@ class ConfMatLayer(nn.Module):
         losses_all_users = torch.mean(torch.sum(losses_all_users, axis=1))
         return losses_all_users
 
-def call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, conf, copy_rates, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight=True):
+def call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, conf, copy_rates, two_stage=True, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight=True):
     batch_size = 128
     epochs = 100
     _, m, k = labels_train.shape
@@ -159,6 +158,12 @@ def call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, 
     best_epoch = 0
     verbose = 5
     early_stopped = False
+    
+    if reweight:
+        redundancy = labels_train[0].sum()
+        factor = (redundancy-1) / (m-1)
+    else:
+        factor = None
     
     # Data augmentation for CIFAR-10
     transforms_train = transforms.Compose([
@@ -199,7 +204,7 @@ def call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, 
     valiloader = DataLoader(valiset, batch_size=batch_size, shuffle=False, pin_memory=True)
     vali_corruptloader = DataLoader(vali_corruptset, batch_size=batch_size, shuffle=False, pin_memory=True)
     testloader = DataLoader(testset, batch_size=batch_size, shuffle=False, pin_memory=True)
-    # del X_train, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, X_train_tensor, labels_tensor, X_vali_tensor, labels_vali_tensor, y_vali_tensor, X_test_tensor, y_test_tensor
+    del X_train, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, X_train_tensor, labels_tensor, X_vali_tensor, labels_vali_tensor, y_vali_tensor, X_test_tensor, y_test_tensor
     
     if not use_pretrained:
         # model = resnet_pytorch.resnet20()
@@ -232,37 +237,40 @@ def call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, 
         for batch_index, (inputs, labels) in enumerate(trainloader):
             inputs, labels = inputs.to(device), labels.to(device)
             #%% Ordinary grad update
-            # optimizer.zero_grad()
-            # optimizer_cm.zero_grad()
-            # log_softmax = model(inputs)
-            # weighted_xe = confusion_matrices_layer.forward(labels, log_softmax)
-            # trace_norm = confusion_matrices_layer.trace_norm()
-            # trace_norm = trace_norm.to(device)
-            # total_loss = weighted_xe + scale * trace_norm
-            # total_loss.backward()
-            # optimizer.step()
-            # optimizer_cm.step()
+            if not two_stage:
+                optimizer.zero_grad()
+                optimizer_cm.zero_grad()
+                log_softmax = model(inputs)
+                weighted_xe = confusion_matrices_layer.forward(labels, log_softmax)
+                trace_norm = confusion_matrices_layer.trace_norm()
+                trace_norm = trace_norm.to(device)
+                total_loss = weighted_xe + scale * trace_norm
+                total_loss.backward()
+                optimizer.step()
+                optimizer_cm.step()
             #%% Two-stage grad update
-            # Stage 1
-            confusion_matrices_layer.reweight = reweight
-            optimizer.zero_grad()
-            log_softmax = model(inputs)
-            weighted_xe = confusion_matrices_layer.forward(labels, log_softmax)
-            trace_norm = confusion_matrices_layer.trace_norm()
-            trace_norm = trace_norm.to(device)
-            total_loss = weighted_xe + scale * trace_norm
-            total_loss.backward()
-            optimizer.step()
-            # Stage 2
-            confusion_matrices_layer.reweight = False
-            optimizer_cm.zero_grad()
-            log_softmax = model(inputs)
-            weighted_xe = confusion_matrices_layer.forward(labels, log_softmax)
-            trace_norm = confusion_matrices_layer.trace_norm()
-            trace_norm = trace_norm.to(device)
-            total_loss = weighted_xe + scale * trace_norm
-            total_loss.backward()
-            optimizer_cm.step()
+            else:
+                # Stage 1
+                confusion_matrices_layer.reweight = reweight
+                optimizer.zero_grad()
+                log_softmax = model(inputs)
+                weighted_xe = confusion_matrices_layer.forward(labels, log_softmax)
+                trace_norm = confusion_matrices_layer.trace_norm()
+                trace_norm = trace_norm.to(device)
+                total_loss = weighted_xe + scale * trace_norm
+                total_loss.backward()
+                optimizer.step()
+                # Stage 2
+                confusion_matrices_layer.reweight = False
+                optimizer_cm.zero_grad()
+                log_softmax = model(inputs)
+                weighted_xe = confusion_matrices_layer.forward(labels, log_softmax)
+                # trace_norm = confusion_matrices_layer.trace_norm()
+                # trace_norm = trace_norm.to(device)
+                # total_loss = weighted_xe + scale * trace_norm
+                # total_loss.backward()
+                weighted_xe.backward()
+                optimizer_cm.step()
             #%%
             # lr_scheduler.step()
             train_loss.update(total_loss.item(), inputs.size(0))
@@ -337,10 +345,12 @@ def plot_result_std_cr(arrays, copy_rate_range, title, ylabel, filename):
     std = arrays.std(axis=0)
     lower = std
     upper= std
-    plt.errorbar(x=copy_rate_range, y=avg[:, 0], yerr=[lower[:, 0], upper[:, 0]], label="reweighting both", fmt='-o')
-    plt.errorbar(x=copy_rate_range, y=avg[:, 1], yerr=[lower[:, 1], upper[:, 1]], label="label count reweighting only", fmt='-o')
-    plt.errorbar(x=copy_rate_range, y=avg[:, 2], yerr=[lower[:, 2], upper[:, 2]], label="copy prob reweighting only", fmt='-o')
-    plt.errorbar(x=copy_rate_range, y=avg[:, 3], yerr=[lower[:, 3], upper[:, 3]], label="no reweighting", fmt='-o')
+    # plt.errorbar(x=copy_rate_range, y=avg[:, 0], yerr=[lower[:, 0], upper[:, 0]], capsize=4, label="reweighting both", fmt='--o')
+    # plt.errorbar(x=copy_rate_range, y=avg[:, 1], yerr=[lower[:, 1], upper[:, 1]], capsize=4, label="label count reweighting only", fmt='--o')
+    # plt.errorbar(x=copy_rate_range, y=avg[:, 2], yerr=[lower[:, 2], upper[:, 2]], capsize=4, label="copy prob reweighting only", fmt='--o')
+    # plt.errorbar(x=copy_rate_range, y=avg[:, 3], yerr=[lower[:, 3], upper[:, 3]], capsize=4, label="no reweighting", fmt='--o')
+    plt.errorbar(x=copy_rate_range, y=avg[:, 0], yerr=[lower[:, 0], upper[:, 0]], capsize=4, label="reweighting both-two stages", fmt='--o')
+    plt.errorbar(x=copy_rate_range, y=avg[:, 1], yerr=[lower[:, 1], upper[:, 1]], capsize=4, label="reweighting both-one stage", fmt='--o')
     plt.ylim(0.0, arrays.max()+0.01)
     plt.title(title)
     plt.xlabel("Copy probability")
@@ -361,7 +371,7 @@ if __name__ == "__main__":
     copy_rates = np.zeros(m)
     copy_ids = np.arange(1, 3) # user no.1 is the copycat
     copy_rate_range = np.arange(0.1, 1.0, 0.2)
-    num_rep = 5 # repetition
+    num_rep = 3 # repetition
     test_accs = np.zeros((num_rep, len(copy_rate_range), 4)) # four algorithms to compare
     conf_errors = np.zeros((num_rep, len(copy_rate_range), 4))
     cp_errors = np.zeros((num_rep, len(copy_rate_range), 4))
@@ -381,9 +391,9 @@ if __name__ == "__main__":
             labels_train, _, workers_on_example = generate_labels_weight_sparse_copycat(y_train[valid_range], repeat, conf, copy_rates, num_busy)
             labels_vali, _, workers_on_example_vali = generate_labels_weight_sparse_copycat(y_vali, repeat, conf, copy_rates, num_busy)
             
-            # 1. Reweighting according to both label counts and estimated copy probs
+            # 1. Reweighting according to both label counts and estimated copy probs, two stage gradient update
             est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
-                                                            conf, copy_rates, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight="BOTH")
+                                                            conf, copy_rates, two_stage=True, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight="BOTH")
             test_accs[rep, i, 0] = test_acc
             conf_errors[rep, i, 0] = conf_error
             cp_errors[rep, i, 0] = cp_error
@@ -391,28 +401,38 @@ if __name__ == "__main__":
             plot_conf_mat(est_conf, conf)
             
             print("--------")
-            # 2. Reweighing according to label counts only
+            # 2. Reweighting according to both label counts and estimated copy probs
             est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
-                                                            conf, copy_rates, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight="CNT")
+                                                            conf, copy_rates, two_stage=False, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight="BOTH")
             test_accs[rep, i, 1] = test_acc
             conf_errors[rep, i, 1] = conf_error
             cp_errors[rep, i, 1] = cp_error
+            print(est_copyrates[1:])
+            plot_conf_mat(est_conf, conf)
             
-            print("--------")
-            # 3. Reweghting according to estimated copy probs only
-            est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
-                                                            conf, copy_rates, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight="CP")
-            test_accs[rep, i, 2] = test_acc
-            conf_errors[rep, i, 2] = conf_error
-            cp_errors[rep, i, 2] = cp_error
+            # print("--------")
+            # # 2. Reweighing according to label counts only
+            # est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
+            #                                                 conf, copy_rates, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight="CNT")
+            # test_accs[rep, i, 1] = test_acc
+            # conf_errors[rep, i, 1] = conf_error
+            # cp_errors[rep, i, 1] = cp_error
             
-            print("--------")
-            # 4. No reweighting
-            est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
-                                                            conf, copy_rates, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight=False)
-            test_accs[rep, i, 3] = test_acc
-            conf_errors[rep, i, 3] = conf_error
-            cp_errors[rep, i, 3] = cp_error
+            # print("--------")
+            # # 3. Reweghting according to estimated copy probs only
+            # est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
+            #                                                 conf, copy_rates, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight="CP")
+            # test_accs[rep, i, 2] = test_acc
+            # conf_errors[rep, i, 2] = conf_error
+            # cp_errors[rep, i, 2] = cp_error
+            
+            # print("--------")
+            # # 4. No reweighting
+            # est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
+            #                                                 conf, copy_rates, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight=False)
+            # test_accs[rep, i, 3] = test_acc
+            # conf_errors[rep, i, 3] = conf_error
+            # cp_errors[rep, i, 3] = cp_error
       
             
     plot_result_std_cr(test_accs, copy_rate_range, title=title, ylabel="Test accuracy", filename=filename+"_testacc")
