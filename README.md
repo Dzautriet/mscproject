@@ -8,3 +8,6 @@ Please
 - go to line 90+ to modify hyperparameters.
 
 Good luck!
+
+***
+`reg_main_2.py` *is now deprecatd. Two-stage gradient update becomes the default option from this update.*
