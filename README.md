@@ -10,4 +10,4 @@ Please
 Good luck!
 
 ***
-`reg_main_2.py` *is now deprecatd. Two-stage gradient update becomes the default option from this update.*
+`reg_main_2.py` *is now deprecated. Two-stage gradient update becomes the default option from this update.*

@@ -3,6 +3,8 @@
 Created on Fri Jul 10 18:20:00 2020
 
 @author: Zhe Cao
+
+reg_main core functions
 """
 
 import numpy as np
@@ -14,25 +16,6 @@ import torchvision.transforms as transforms
 from torch.utils.data import TensorDataset, Dataset, DataLoader
 import models
 from utils import *
-
-# class MyDataset(Dataset):
-#     """
-#     TensorDataset with support of transforms.
-#     """
-#     def __init__(self, tensors, transforms=None):
-#         assert all(tensors[0].size(0) == tensor.size(0) for tensor in tensors)
-#         self.tensors = tensors
-#         self.transforms = transforms
-
-#     def __getitem__(self, index):
-#         x = self.tensors[0][index]
-#         if self.transforms:
-#             x = self.transforms(x)
-#         y = self.tensors[1][index]
-#         return x, y
-
-#     def __len__(self):
-#         return self.tensors[0].size(0)
     
     
 def call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, conf, copy_rates, two_stage=True, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight=True):
