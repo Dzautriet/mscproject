@@ -71,10 +71,13 @@ def plot_result_std_cr(arrays, copy_rate_range, title, ylabel, filename):
     std = arrays.std(axis=0)
     lower = std
     upper= std
-    plt.errorbar(x=copy_rate_range, y=avg[:, 0], yerr=[lower[:, 0], upper[:, 0]], capsize=4, label="proposed method", fmt='--o')
-    plt.errorbar(x=copy_rate_range, y=avg[:, 1], yerr=[lower[:, 1], upper[:, 1]], capsize=4, label="confusion matrix w/o copy rate est.", fmt='--o')
-    plt.errorbar(x=copy_rate_range, y=avg[:, 2], yerr=[lower[:, 2], upper[:, 2]], capsize=4, label="majority vote", fmt='--o')
-    plt.errorbar(x=copy_rate_range, y=avg[:, 3], yerr=[lower[:, 3], upper[:, 3]], capsize=4, label="MBEM", fmt='--o')
+    plt.errorbar(x=copy_rate_range, y=avg[:, 0], yerr=[lower[:, 0], upper[:, 0]], capsize=4, label="proposed method", fmt='--o', color=u'#1f77b4')
+    if np.any(avg[:, 1] != 0):
+        plt.errorbar(x=copy_rate_range, y=avg[:, 1], yerr=[lower[:, 1], upper[:, 1]], capsize=4, label="confusion matrix w/o copy rate est.", fmt='--o', color=u'#ff7f0e')
+    if np.any(avg[:, 2] != 0):
+        plt.errorbar(x=copy_rate_range, y=avg[:, 2], yerr=[lower[:, 2], upper[:, 2]], capsize=4, label="majority vote", fmt='--o', color=u'#2ca02c')
+    if np.any(avg[:, 3] != 0):
+        plt.errorbar(x=copy_rate_range, y=avg[:, 3], yerr=[lower[:, 3], upper[:, 3]], capsize=4, label="MBEM", fmt='--o', color=u'#d62728')
     plt.ylim(0.0, arrays.max()+0.01)
     plt.title(title)
     plt.xlabel("Copy probability")
@@ -104,8 +107,8 @@ if __name__ == "__main__":
     conf_errors = np.zeros((num_rep, len(copy_rate_range), 4))
     cp_errors = np.zeros((num_rep, len(copy_rate_range), 4))
     
-    title = "Redundancy:{}, skill level: {}".format(repeat, gamma_c)
-    filename = "Copyrate_layer_lossreweight_r_{}_g_{}_4comp_2stage_partial".format(repeat, gamma_c).replace('.', '')
+    title = "Redundancy:{}, skill level: {} & {}".format(repeat, gamma_b, gamma_c)
+    filename = "Copyrate_layer_lossreweight_r_{}_g_{}_{}_4comp_2stage_partial".format(repeat, gamma_b, gamma_c).replace('.', '')
     
     for rep in range(num_rep):
         print("Repetition: {}".format(rep))
@@ -134,7 +137,7 @@ if __name__ == "__main__":
                                                             conf, copy_rates, two_stage=False, use_pretrained=False, model=None, use_aug=False, est_cr=False, reweight=False)
             test_accs[rep, i, 1] = test_acc
             conf_errors[rep, i, 1] = conf_error
-            cp_errors[rep, i, 1] = cp_error
+            # cp_errors[rep, i, 1] = cp_error # not applicable
             
             print("--------")
             # 3. & 4. MBEM
@@ -142,17 +145,19 @@ if __name__ == "__main__":
             y_vali_corrupt = np.sum(labels_vali, axis=1) / repeat
             pred_train, pred_vali, vali_acc, test_acc, model = call_train_mbem(X_train, valid_range, y_train_wmv, X_vali, y_vali_corrupt, y_vali, X_test, y_test, use_aug=use_aug)
             test_accs[rep, i, 2] = test_acc
-            conf_errors[rep, i, 2] = conf_error
-            cp_errors[rep, i, 2] = cp_error
-            
+            # conf_errors[rep, i, 2] = conf_error # not applicable
+            # cp_errors[rep, i, 2] = cp_error # not applicable
+            print("--------")
             for j in range(mbem_round):
                 est_q, est_label_posterior, est_conf = posterior_distribution(labels_train, pred_train, workers_on_example)
                 est_q_vali, est_label_posterior_vali, _ = posterior_distribution(labels_vali, pred_vali, workers_on_example_vali)
                 # Train
                 pred_train, pred_vali, vali_acc, test_acc, model = call_train_mbem(X_train, valid_range, est_label_posterior, X_vali, est_label_posterior_vali, y_vali, X_test, y_test, use_aug=use_aug)
+            conf_error = np.mean([np.linalg.norm(est_conf[i] - conf[i]) for i in range(m)])
             test_accs[rep, i, 3] = test_acc
             conf_errors[rep, i, 3] = conf_error
-            cp_errors[rep, i, 3] = cp_error
+            # cp_errors[rep, i, 3] = cp_error # not applicable
+            # plot_conf_mat(est_conf, conf)
             
     plot_result_std_cr(test_accs, copy_rate_range, title=title, ylabel="Test accuracy", filename=filename+"_testacc")
     plot_result_std_cr(cp_errors, copy_rate_range, title=title, ylabel="Copy probability estimation error", filename=filename+"_cperror")
