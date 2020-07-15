@@ -29,7 +29,7 @@ import argparse
 #%% Parse arguments
 parser = argparse.ArgumentParser(description='Process some integers.')
 parser.add_argument('gamma_b', type=float, help='skill level of the busy user')
-parser.add_argument('gamma_c', type=float, help='skill level of the busy user')
+parser.add_argument('gamma_c', type=float, help='skill level of the other users')
 args = parser.parse_args()
 
 #%% Load cifar-10 data
