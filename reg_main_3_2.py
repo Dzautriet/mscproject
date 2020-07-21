@@ -108,7 +108,7 @@ if __name__ == "__main__":
             
             # 1. Reweighting according to both label counts and estimated copy probs
             est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
-                                                            conf, copy_rates, two_stage=True, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight="BOTH")
+                                                            conf, copy_rates, two_stage=True, use_pretrained=False, model=None, use_aug=use_aug, est_cr=True, reweight="BOTH")
             test_accs[rep, i, 0] = test_acc
             conf_errors[rep, i, 0] = conf_error
             cp_errors[rep, i, 0] = cp_error
@@ -118,7 +118,7 @@ if __name__ == "__main__":
             print("--------")
             # 2. Reweighing according to label counts only
             est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
-                                                            conf, copy_rates, two_stage=True, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight="CNT")
+                                                            conf, copy_rates, two_stage=True, use_pretrained=False, model=None, use_aug=use_aug, est_cr=True, reweight="CNT")
             test_accs[rep, i, 1] = test_acc
             conf_errors[rep, i, 1] = conf_error
             cp_errors[rep, i, 1] = cp_error
@@ -126,7 +126,7 @@ if __name__ == "__main__":
             print("--------")
             # 3. Reweghting according to estimated copy probs only
             est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
-                                                            conf, copy_rates, two_stage=True, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight="CP")
+                                                            conf, copy_rates, two_stage=True, use_pretrained=False, model=None, use_aug=use_aug, est_cr=True, reweight="CP")
             test_accs[rep, i, 2] = test_acc
             conf_errors[rep, i, 2] = conf_error
             cp_errors[rep, i, 2] = cp_error
@@ -134,7 +134,7 @@ if __name__ == "__main__":
             print("--------")
             # 4. No reweighting
             est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
-                                                            conf, copy_rates, two_stage=True, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight=False)
+                                                            conf, copy_rates, two_stage=True, use_pretrained=False, model=None, use_aug=use_aug, est_cr=True, reweight=False)
             test_accs[rep, i, 3] = test_acc
             conf_errors[rep, i, 3] = conf_error
             cp_errors[rep, i, 3] = cp_error

@@ -180,7 +180,6 @@ def call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, 
     
     # Create data loader
     X_train_tensor = torch.tensor(X_train[valid_range], dtype=torch.float)
-    X_train_tensor_pred = torch.tensor(X_train, dtype=torch.float)
     labels_tensor = torch.tensor(labels_train, dtype=torch.float)
     X_vali_tensor = torch.tensor(X_vali, dtype=torch.float)
     labels_vali_tensor = torch.tensor(labels_vali, dtype=torch.float)
@@ -189,18 +188,15 @@ def call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, 
     y_test_tensor = torch.tensor(y_test, dtype=torch.float)
     if use_aug:
         trainset = MyDataset(tensors=(X_train_tensor, labels_tensor), transforms=transforms_train)
-        trainset_pred = MyDataset(tensors=(X_train_tensor_pred,), transforms=transforms_test_vali)
         vali_corruptset = MyDataset(tensors=(X_vali_tensor, labels_vali_tensor), transforms=transforms_test_vali)
         valiset = MyDataset(tensors=(X_vali_tensor, y_vali_tensor), transforms=transforms_test_vali)
         testset = MyDataset(tensors=(X_test_tensor, y_test_tensor), transforms=transforms_test_vali)
     else:
         trainset = TensorDataset(X_train_tensor, labels_tensor)
-        trainset_pred = TensorDataset(X_train_tensor_pred,)
         vali_corruptset = TensorDataset(X_vali_tensor, labels_vali_tensor)
         valiset = TensorDataset(X_vali_tensor, y_vali_tensor)
         testset = TensorDataset(X_test_tensor, y_test_tensor)
     trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True, pin_memory=True)
-    trainloader_pred = DataLoader(trainset_pred, batch_size=batch_size, shuffle=False, pin_memory=True)
     valiloader = DataLoader(valiset, batch_size=batch_size, shuffle=False, pin_memory=True)
     vali_corruptloader = DataLoader(vali_corruptset, batch_size=batch_size, shuffle=False, pin_memory=True)
     testloader = DataLoader(testset, batch_size=batch_size, shuffle=False, pin_memory=True)
@@ -393,7 +389,7 @@ if __name__ == "__main__":
             
             # 1. Reweighting according to both label counts and estimated copy probs, two stage gradient update
             est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
-                                                            conf, copy_rates, two_stage=True, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight="BOTH")
+                                                            conf, copy_rates, two_stage=True, use_pretrained=False, model=None, use_aug=use_aug, est_cr=True, reweight="BOTH")
             test_accs[rep, i, 0] = test_acc
             conf_errors[rep, i, 0] = conf_error
             cp_errors[rep, i, 0] = cp_error
@@ -403,7 +399,7 @@ if __name__ == "__main__":
             print("--------")
             # 2. Reweighting according to both label counts and estimated copy probs
             est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
-                                                            conf, copy_rates, two_stage=False, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight="BOTH")
+                                                            conf, copy_rates, two_stage=False, use_pretrained=False, model=None, use_aug=use_aug, est_cr=True, reweight="BOTH")
             test_accs[rep, i, 1] = test_acc
             conf_errors[rep, i, 1] = conf_error
             cp_errors[rep, i, 1] = cp_error
@@ -413,7 +409,7 @@ if __name__ == "__main__":
             # print("--------")
             # # 2. Reweighing according to label counts only
             # est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
-            #                                                 conf, copy_rates, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight="CNT")
+            #                                                 conf, copy_rates, use_pretrained=False, model=None, use_aug=use_aug, est_cr=True, reweight="CNT")
             # test_accs[rep, i, 1] = test_acc
             # conf_errors[rep, i, 1] = conf_error
             # cp_errors[rep, i, 1] = cp_error
@@ -421,7 +417,7 @@ if __name__ == "__main__":
             # print("--------")
             # # 3. Reweghting according to estimated copy probs only
             # est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
-            #                                                 conf, copy_rates, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight="CP")
+            #                                                 conf, copy_rates, use_pretrained=False, model=None, use_aug=use_aug, est_cr=True, reweight="CP")
             # test_accs[rep, i, 2] = test_acc
             # conf_errors[rep, i, 2] = conf_error
             # cp_errors[rep, i, 2] = cp_error
@@ -429,7 +425,7 @@ if __name__ == "__main__":
             # print("--------")
             # # 4. No reweighting
             # est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
-            #                                                 conf, copy_rates, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight=False)
+            #                                                 conf, copy_rates, use_pretrained=False, model=None, use_aug=use_aug, est_cr=True, reweight=False)
             # test_accs[rep, i, 3] = test_acc
             # conf_errors[rep, i, 3] = conf_error
             # cp_errors[rep, i, 3] = cp_error

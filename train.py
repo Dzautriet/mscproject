@@ -16,26 +16,8 @@ import resnet_pytorch
 import resnet_pytorch_2
 import models
 import gc
-from utils import AverageMeter
+from utils import AverageMeter, MyDataset
         
-class MyDataset(Dataset):
-    """
-    TensorDataset with support of transforms.
-    """
-    def __init__(self, tensors, transforms=None):
-        assert all(tensors[0].size(0) == tensor.size(0) for tensor in tensors)
-        self.tensors = tensors
-        self.transforms = transforms
-
-    def __getitem__(self, index):
-        x = self.tensors[0][index]
-        if self.transforms:
-            x = self.transforms(x)
-        y = self.tensors[1][index]
-        return x, y
-
-    def __len__(self):
-        return self.tensors[0].size(0)
 
 def XE(pred, target):
     """
@@ -53,17 +35,22 @@ def accuracy(pred, targets):
     acc = num_correct.float() / targets.size(0)
     return acc
 
-def call_train(X_train, valid_range, y_train_corrupt, X_vali, y_vali_corrupt, y_vali, X_test, y_test, use_pretrained=False, model=None, use_aug=False):
+def call_train(X_train, valid_range, y_train_corrupt, X_vali, y_vali_corrupt, y_vali, X_test, y_test, use_pretrained=False, model=None, use_aug=False, dataset="mnist"):
     batch_size = 128
     epochs = 100
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    patience = 20
-    learning_rate = 0.01
+    patience = 15
+    if dataset == "mnist":
+        learning_rate = 0.01
+    elif dataset == "cifar10":
+        learning_rate = 0.001 # 0.01 for MNIST, 0.001 for cifar-10
+    else:
+        pass
     save_path = 'model'
     best_acc = 0
     best_epoch = 0
     num_classes = y_train_corrupt.shape[1]
-    verbose = 50
+    verbose = 10
     
     # Data augmentation for CIFAR-10
     transforms_train = transforms.Compose([
@@ -89,13 +76,13 @@ def call_train(X_train, valid_range, y_train_corrupt, X_vali, y_vali_corrupt, y_
     y_test_tensor = torch.tensor(y_test, dtype=torch.float)
     if use_aug:
         trainset = MyDataset(tensors=(X_train_tensor, y_train_tensor), transforms=transforms_train)
-        trainset_pred = MyDataset(tensors=(X_train_tensor_pred,), transforms=transforms_test_vali)
+        trainset_pred = MyDataset(tensors=(X_train_tensor_pred, ), transforms=transforms_test_vali)
         vali_corruptset = MyDataset(tensors=(X_vali_tensor, y_vali_corrupt_tensor), transforms=transforms_test_vali)
         valiset = MyDataset(tensors=(X_vali_tensor, y_vali_tensor), transforms=transforms_test_vali)
         testset = MyDataset(tensors=(X_test_tensor, y_test_tensor), transforms=transforms_test_vali)
     else:
         trainset = TensorDataset(X_train_tensor, y_train_tensor)
-        trainset_pred = TensorDataset(X_train_tensor_pred,)
+        trainset_pred = TensorDataset(X_train_tensor_pred, )
         vali_corruptset = TensorDataset(X_vali_tensor, y_vali_corrupt_tensor)
         valiset = TensorDataset(X_vali_tensor, y_vali_tensor)
         testset = TensorDataset(X_test_tensor, y_test_tensor)
@@ -109,12 +96,18 @@ def call_train(X_train, valid_range, y_train_corrupt, X_vali, y_vali_corrupt, y_
     if not use_pretrained:
         # model = resnet_pytorch.resnet20()
         # model = resnet_pytorch_2.ResNet18()
-        model = models.CNN_MNIST()
+        if dataset ==  "mnist":
+            model = models.CNN_MNIST()
+        elif dataset == "cifar10":
+            model = models.CNN_CIFAR(torchvision.models.resnet18(pretrained=True, progress=True))
+        else:
+            pass
         model.to(device)
     
     # optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9, weight_decay=5e-4)
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=5e-4)
-    lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[50, 120])
+    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+    # optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=5e-4)
+    # lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[50, 120])
                                                                                                                                                                                                                                                                           
     for epoch in range(epochs):
         model.train()
@@ -128,7 +121,7 @@ def call_train(X_train, valid_range, y_train_corrupt, X_vali, y_vali_corrupt, y_
             loss = XE(outputs, targets)
             loss.backward()
             optimizer.step()
-            lr_scheduler.step()
+            # lr_scheduler.step()
             train_loss.update(loss.item(), inputs.size(0))            
             
         # Evaluation

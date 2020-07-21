@@ -30,36 +30,8 @@ import argparse
 parser = argparse.ArgumentParser(description='Process some integers.')
 parser.add_argument('gamma_b', type=float, help='skill level of the busy user')
 parser.add_argument('gamma_c', type=float, help='skill level of the other users')
+parser.add_argument('dataset', type=str, help='mnist or cifar10')
 args = parser.parse_args()
-
-#%% Load cifar-10 data
-# X = np.load("./cifar10/X.npy")
-# y = np.load("./cifar10/y.npy")
-# X_test = np.load("./cifar10/X_test.npy")
-# y_test = np.load("./cifar10/y_test.npy")
-
-# k = 10
-# X = X / 255.0
-# X_test = X_test / 255.0
-# y = y.astype(int)
-# y_test = y_test.astype(int)
-# y = np.eye(k)[y]
-# y_test = np.eye(k)[y_test]
-# X_train, X_vali = X[:45000], X[45000:]
-# y_train, y_vali = y[:45000], y[45000:]
-# use_aug = True
-
-#%% Load MNIST data
-X = np.load("./mnist/X.npy")
-y = np.load("./mnist/y.npy", allow_pickle=True)
-k = 10
-X = X / 255.0
-X = X.reshape(-1, 1, 28, 28)
-y = y.astype(int)
-y = np.eye(k)[y]
-X_train, X_vali, X_test = X[:50000], X[50000:60000], X[60000:]
-y_train, y_vali, y_test = y[:50000], y[50000:60000], y[60000:]
-use_aug = False
 
 #%% Functions & classes
 def plot_result_std_cr(arrays, copy_rate_range, title, ylabel, filename):
@@ -90,25 +62,65 @@ def plot_result_std_cr(arrays, copy_rate_range, title, ylabel, filename):
 
 #%% Main
 if __name__ == "__main__":
+    dataset = args.dataset
+    # dataset = 'mnist'
+    #%% Load cifar-10 data
+    if dataset == 'cifar10':    
+        X = np.load("./cifar10/X.npy")
+        y = np.load("./cifar10/y.npy")
+        X_test = np.load("./cifar10/X_test.npy")
+        y_test = np.load("./cifar10/y_test.npy")        
+        k = 10
+        X = X / 255.0
+        X_test = X_test / 255.0
+        y = y.astype(int)
+        y_test = y_test.astype(int)
+        y = np.eye(k)[y]
+        y_test = np.eye(k)[y_test]
+        X_train, X_vali = X[:45000], X[45000:]
+        y_train, y_vali = y[:45000], y[45000:]
+        use_aug = False    
+    #%% Load MNIST data
+    elif dataset == 'mnist':
+        X = np.load("./mnist/X.npy")
+        y = np.load("./mnist/y.npy", allow_pickle=True)
+        k = 10
+        X = X / 255.0
+        X = X.reshape(-1, 1, 28, 28)
+        y = y.astype(int)
+        y = np.eye(k)[y]
+        X_train, X_vali, X_test = X[:50000], X[50000:60000], X[60000:]
+        y_train, y_vali, y_test = y[:50000], y[50000:60000], y[60000:]
+        use_aug = False
+    else:
+        raise ValueError("Invalid value for dataset!")
+    
     m = 5 # number of users
-    # gamma_b = .30 # skill level of the busy user
-    # gamma_c = .30 # skill level of the other users
+    # gamma_b = .90 # skill level of the busy user
+    # gamma_c = .90 # skill level of the other users
     gamma_b = args.gamma_b
     gamma_c = args.gamma_c
     repeat = 2 # redundancy
-    valid_range = np.arange(10000)
+    if dataset == 'cifar10':
+        valid_range = np.arange(45000)
+    elif dataset == 'mnist':
+        valid_range = np.arange(5000)
+    else:
+        pass
+    print("Training on {} samples.".format(len(valid_range)))
     num_busy = 1 # 1 by default, starting from No.0
     copy_rates = np.zeros(m)
     copy_ids = np.arange(1, 2) # user no.1 is the copycat
-    copy_rate_range = np.arange(0.1, 1.0, 0.2)
-    num_rep = 5 # repetition
+    # copy_rate_range = np.arange(0.1, 1.0, 0.2)
+    copy_rate_range = np.arange(0.0, 1.1, 0.25)
+    num_rep = 3 # repetition
     mbem_round = 1
     test_accs = np.zeros((num_rep, len(copy_rate_range), 4)) # four algorithms to compare
     conf_errors = np.zeros((num_rep, len(copy_rate_range), 4))
     cp_errors = np.zeros((num_rep, len(copy_rate_range), 4))
     
     title = "Redundancy:{}, skill level: {} & {}".format(repeat, gamma_b, gamma_c)
-    filename = "Copyrate_layer_lossreweight_r_{}_g_{}_{}_4comp_2stage_partial".format(repeat, gamma_b, gamma_c).replace('.', '')
+    filename = "{}_Copyrate_layer_lossreweight_r_{}_g_{}_{}_4comp_2stage_partial".format(dataset, repeat, gamma_b, gamma_c).replace('.', '')
     
     for rep in range(num_rep):
         print("Repetition: {}".format(rep))
@@ -124,7 +136,7 @@ if __name__ == "__main__":
             
             # 1. Estimating copy rates & reweighting
             est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
-                                                            conf, copy_rates, two_stage=True, use_pretrained=False, model=None, use_aug=False, est_cr=True, reweight=True)
+                                                            conf, copy_rates, two_stage=True, use_pretrained=False, model=None, use_aug=use_aug, est_cr=True, reweight=True, dataset=dataset)
             test_accs[rep, i, 0] = test_acc
             conf_errors[rep, i, 0] = conf_error
             cp_errors[rep, i, 0] = cp_error
@@ -134,7 +146,7 @@ if __name__ == "__main__":
             print("--------")
             # 2. w/o copy rate est
             est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
-                                                            conf, copy_rates, two_stage=False, use_pretrained=False, model=None, use_aug=False, est_cr=False, reweight=False)
+                                                            conf, copy_rates, two_stage=False, use_pretrained=False, model=None, use_aug=use_aug, est_cr=False, reweight=False, dataset=dataset)
             test_accs[rep, i, 1] = test_acc
             conf_errors[rep, i, 1] = conf_error
             # cp_errors[rep, i, 1] = cp_error # not applicable
@@ -143,7 +155,7 @@ if __name__ == "__main__":
             # 3. & 4. MBEM
             y_train_wmv = np.sum(labels_train, axis=1) / repeat
             y_vali_corrupt = np.sum(labels_vali, axis=1) / repeat
-            pred_train, pred_vali, vali_acc, test_acc, model = call_train_mbem(X_train, valid_range, y_train_wmv, X_vali, y_vali_corrupt, y_vali, X_test, y_test, use_aug=use_aug)
+            pred_train, pred_vali, vali_acc, test_acc, model = call_train_mbem(X_train, valid_range, y_train_wmv, X_vali, y_vali_corrupt, y_vali, X_test, y_test, use_aug=use_aug, dataset=dataset)
             test_accs[rep, i, 2] = test_acc
             # conf_errors[rep, i, 2] = conf_error # not applicable
             # cp_errors[rep, i, 2] = cp_error # not applicable
@@ -152,7 +164,7 @@ if __name__ == "__main__":
                 est_q, est_label_posterior, est_conf = posterior_distribution(labels_train, pred_train, workers_on_example)
                 est_q_vali, est_label_posterior_vali, _ = posterior_distribution(labels_vali, pred_vali, workers_on_example_vali)
                 # Train
-                pred_train, pred_vali, vali_acc, test_acc, model = call_train_mbem(X_train, valid_range, est_label_posterior, X_vali, est_label_posterior_vali, y_vali, X_test, y_test, use_aug=use_aug)
+                pred_train, pred_vali, vali_acc, test_acc, model = call_train_mbem(X_train, valid_range, est_label_posterior, X_vali, est_label_posterior_vali, y_vali, X_test, y_test, use_aug=use_aug, dataset=dataset)
             conf_error = np.mean([np.linalg.norm(est_conf[i] - conf[i]) for i in range(m)])
             test_accs[rep, i, 3] = test_acc
             conf_errors[rep, i, 3] = conf_error

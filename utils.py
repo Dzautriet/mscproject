@@ -22,8 +22,11 @@ class MyDataset(Dataset):
         x = self.tensors[0][index]
         if self.transforms:
             x = self.transforms(x)
-        y = self.tensors[1][index]
-        return x, y
+        if len(self.tensors) == 2:
+            y = self.tensors[1][index]
+            return x, y
+        else:
+            return x
 
     def __len__(self):
         return self.tensors[0].size(0)
