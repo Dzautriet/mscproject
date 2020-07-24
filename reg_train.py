@@ -134,7 +134,9 @@ def call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, 
                 optimizer_cm.zero_grad()
                 log_softmax = model(inputs)
                 weighted_xe = confusion_matrices_layer.forward(labels, log_softmax)
-                weighted_xe.backward()
+                total_loss = weighted_xe + scale * trace_norm
+                total_loss.backward()
+                # weighted_xe.backward()
                 optimizer_cm.step()
             #%%
             # lr_scheduler.step()
