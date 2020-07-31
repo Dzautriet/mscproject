@@ -25,35 +25,6 @@ from reg_main_3 import call_train
 import models
 import gc
 
-#%% Load cifar-10 data
-# X = np.load("./cifar10/X.npy")
-# y = np.load("./cifar10/y.npy")
-# X_test = np.load("./cifar10/X_test.npy")
-# y_test = np.load("./cifar10/y_test.npy")
-
-# k = 10
-# X = X / 255.0
-# X_test = X_test / 255.0
-# y = y.astype(int)
-# y_test = y_test.astype(int)
-# y = np.eye(k)[y]
-# y_test = np.eye(k)[y_test]
-# X_train, X_vali = X[:45000], X[45000:]
-# y_train, y_vali = y[:45000], y[45000:]
-# use_aug = True
-
-#%% Load MNIST data
-X = np.load("./mnist/X.npy")
-y = np.load("./mnist/y.npy", allow_pickle=True)
-k = 10
-X = X / 255.0
-X = X.reshape(-1, 1, 28, 28)
-y = y.astype(int)
-y = np.eye(k)[y]
-X_train, X_vali, X_test = X[:50000], X[50000:60000], X[60000:]
-y_train, y_vali, y_test = y[:50000], y[50000:60000], y[60000:]
-use_aug = False
-
 #%% Functions
 def plot_result_std_cr_gammax(arrays, gamma_range, title, ylabel, filename):
     """
@@ -80,6 +51,34 @@ def plot_result_std_cr_gammax(arrays, gamma_range, title, ylabel, filename):
 
 #%% Main
 if __name__ == "__main__":
+    #%% Load cifar-10 data
+    # X = np.load("./cifar10/X.npy")
+    # y = np.load("./cifar10/y.npy")
+    # X_test = np.load("./cifar10/X_test.npy")
+    # y_test = np.load("./cifar10/y_test.npy")
+    
+    # k = 10
+    # X = X / 255.0
+    # X_test = X_test / 255.0
+    # y = y.astype(int)
+    # y_test = y_test.astype(int)
+    # y = np.eye(k)[y]
+    # y_test = np.eye(k)[y_test]
+    # X_train, X_vali = X[:45000], X[45000:]
+    # y_train, y_vali = y[:45000], y[45000:]
+    # use_aug = True
+    #%% Load MNIST data
+    X = np.load("./mnist/X.npy")
+    y = np.load("./mnist/y.npy", allow_pickle=True)
+    k = 10
+    X = X / 255.0
+    X = X.reshape(-1, 1, 28, 28)
+    y = y.astype(int)
+    y = np.eye(k)[y]
+    X_train, X_vali, X_test = X[:50000], X[50000:60000], X[60000:]
+    y_train, y_vali, y_test = y[:50000], y[50000:60000], y[60000:]
+    use_aug = False
+
     m = 5 # number of users
     gamma_range = np.arange(0.30, 0.501, 0.05)
     repeat = 2 # redundancy
@@ -96,6 +95,10 @@ if __name__ == "__main__":
     
     title = "Redundancy:{}, copy probability: {}".format(repeat, copy_rate)
     filename = "Copyrate_layer_lossreweight_r_{}_c_{}_ablation_gammax".format(repeat, copy_rate).replace('.', '')
+    result_dir = 'result'
+    if not os.path.exists(result_dir):
+        os.mkdir(result_dir)
+    filename = '/'.join(['.', result_dir, filename])
     
     for rep in range(num_rep):
         print("Repetition: {}".format(rep))
@@ -115,24 +118,24 @@ if __name__ == "__main__":
             print(est_copyrates[1:])
             plot_conf_mat(est_conf, conf)
             
-            print("--------")
             # 2. Reweighing according to label counts only
+            print("--------")
             est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
                                                             conf, copy_rates, two_stage=True, use_pretrained=False, model=None, use_aug=use_aug, est_cr=True, reweight="CNT")
             test_accs[rep, i, 1] = test_acc
             conf_errors[rep, i, 1] = conf_error
             cp_errors[rep, i, 1] = cp_error
             
-            print("--------")
             # 3. Reweghting according to estimated copy probs only
+            print("--------")
             est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
                                                             conf, copy_rates, two_stage=True, use_pretrained=False, model=None, use_aug=use_aug, est_cr=True, reweight="CP")
             test_accs[rep, i, 2] = test_acc
             conf_errors[rep, i, 2] = conf_error
             cp_errors[rep, i, 2] = cp_error
             
-            print("--------")
             # 4. No reweighting
+            print("--------")
             est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
                                                             conf, copy_rates, two_stage=True, use_pretrained=False, model=None, use_aug=use_aug, est_cr=True, reweight=False)
             test_accs[rep, i, 3] = test_acc

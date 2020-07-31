@@ -30,12 +30,29 @@ class MyDataset(Dataset):
 
     def __len__(self):
         return self.tensors[0].size(0)
+    
+    
+class AverageMeter(object):
+    """Computes and stores the average and current value"""
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+
+    def update(self, val, n=1):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count
 
 
 def correct_rate(y, y_corrupt):
     num_match = y[np.argmax(y, axis=1) == np.argmax(y_corrupt, axis=1)].shape[0]
     return num_match / y.shape[0]
-
 
 def plot_conf_mat(est_conf, conf):
     """
@@ -70,25 +87,8 @@ def plot_cp(est_copyrates, copy_rates):
     ax_1.imshow(copy_rates[np.newaxis, 1:], cmap='Blues', vmin=0, vmax=1)
     ax_1.set_title("Ground truth\n copy rates")
     ax_1.axis('off')
-    plt.show()
+    plt.show()    
     
-class AverageMeter(object):
-    """Computes and stores the average and current value"""
-    def __init__(self):
-        self.reset()
-
-    def reset(self):
-        self.val = 0
-        self.avg = 0
-        self.sum = 0
-        self.count = 0
-
-    def update(self, val, n=1):
-        self.val = val
-        self.sum += val * n
-        self.count += n
-        self.avg = self.sum / self.count
-        
 def accuracy(pred, targets):
     """
     pred: log softmax output

@@ -1,11 +1,12 @@
 /cifar10
-/__pycache__
 /mnist
+/__pycache__
+/.pylint.d
 /.ipynb_checkpoints
 /crowdsourcedamazonsentiment
 /crowdsourcedtwittersentiment
 /Reweight 20 May
 /archived result
-/cifar 10
+/result
 model
 cm_layer

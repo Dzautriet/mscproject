@@ -120,7 +120,11 @@ if __name__ == "__main__":
     cp_errors = np.zeros((num_rep, len(copy_rate_range), 4))
     
     title = "Redundancy:{}, skill level: {} & {}".format(repeat, gamma_b, gamma_c)
+    result_dir = 'result'
+    if not os.path.exists(result_dir):
+        os.mkdir(result_dir)
     filename = "{}_Copyrate_layer_lossreweight_r_{}_g_{}_{}_4comp_2stage_partial".format(dataset, repeat, gamma_b, gamma_c).replace('.', '')
+    filename = '/'.join(['.', result_dir, filename])
     
     for rep in range(num_rep):
         print("Repetition: {}".format(rep))
@@ -128,9 +132,9 @@ if __name__ == "__main__":
             copy_rates[copy_ids] = copy_rate_value
             print("----------------")
             print("Copy rates: {}".format(copy_rates))
-            conf_b = generate_conf_pairflipper(1, k, gamma_b)
+            conf_b = generate_conf_pairflipper(num_busy, k, gamma_b)
             conf = generate_conf_pairflipper(m, k, gamma_c)
-            conf[:1] = conf_b
+            conf[:num_busy] = conf_b
             labels_train, _, workers_on_example = generate_labels_weight_sparse_copycat(y_train[valid_range], repeat, conf, copy_rates, num_busy)
             labels_vali, _, workers_on_example_vali = generate_labels_weight_sparse_copycat(y_vali, repeat, conf, copy_rates, num_busy)
             
@@ -143,16 +147,16 @@ if __name__ == "__main__":
             print(est_copyrates[1:])
             # plot_conf_mat(est_conf, conf)
             
-            print("--------")
             # 2. w/o copy rate est
+            print("--------")
             est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
                                                             conf, copy_rates, two_stage=False, use_pretrained=False, model=None, use_aug=use_aug, est_cr=False, reweight=False, dataset=dataset)
             test_accs[rep, i, 1] = test_acc
             conf_errors[rep, i, 1] = conf_error
             # cp_errors[rep, i, 1] = cp_error # not applicable
             
-            print("--------")
             # 3. & 4. MBEM
+            print("--------")
             y_train_wmv = np.sum(labels_train, axis=1) / repeat
             y_vali_corrupt = np.sum(labels_vali, axis=1) / repeat
             pred_train, pred_vali, vali_acc, test_acc, model = call_train_mbem(X_train, valid_range, y_train_wmv, X_vali, y_vali_corrupt, y_vali, X_test, y_test, use_aug=use_aug, dataset=dataset)

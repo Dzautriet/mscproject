@@ -61,7 +61,7 @@ def posterior_distribution(response, pred_train, workers_on_example):
     for i in range(n):
         for j in workers_on_example[i]:
             if j in range(m): # added to filter out copycat
-                est_label_posterior[i] += np.log(est_conf[j, :, :] @ response[i, j])
+                est_label_posterior[i] += np.log(np.clip(est_conf[j, :, :] @ response[i, j], 1e-10, 1.-1e-7))
         est_label_posterior[i] = np.exp(est_label_posterior[i]) * est_q
         est_label_posterior[i] /= np.sum(est_label_posterior[i])
 

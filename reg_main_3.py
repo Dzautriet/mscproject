@@ -24,55 +24,7 @@ from MBEM import posterior_distribution
 import models
 import gc
 
-#%% Load cifar-10 data
-# X = np.load("./cifar10/X.npy")
-# y = np.load("./cifar10/y.npy")
-# X_test = np.load("./cifar10/X_test.npy")
-# y_test = np.load("./cifar10/y_test.npy")
-
-# k = 10
-# X = X / 255.0
-# X_test = X_test / 255.0
-# y = y.astype(int)
-# y_test = y_test.astype(int)
-# y = np.eye(k)[y]
-# y_test = np.eye(k)[y_test]
-# X_train, X_vali = X[:45000], X[45000:]
-# y_train, y_vali = y[:45000], y[45000:]
-# use_aug = True
-
-#%% Load MNIST data
-X = np.load("./mnist/X.npy")
-y = np.load("./mnist/y.npy", allow_pickle=True)
-k = 10
-X = X / 255.0
-X = X.reshape(-1, 1, 28, 28)
-y = y.astype(int)
-y = np.eye(k)[y]
-X_train, X_vali, X_test = X[:50000], X[50000:60000], X[60000:]
-y_train, y_vali, y_test = y[:50000], y[50000:60000], y[60000:]
-use_aug = False
-
 #%% Functions & classes
-class MyDataset(Dataset):
-    """
-    TensorDataset with support of transforms.
-    """
-    def __init__(self, tensors, transforms=None):
-        assert all(tensors[0].size(0) == tensor.size(0) for tensor in tensors)
-        self.tensors = tensors
-        self.transforms = transforms
-
-    def __getitem__(self, index):
-        x = self.tensors[0][index]
-        if self.transforms:
-            x = self.transforms(x)
-        y = self.tensors[1][index]
-        return x, y
-
-    def __len__(self):
-        return self.tensors[0].size(0)
-
 class ConfMatLayer(nn.Module):
     """
     Adapted for ablation study
@@ -83,14 +35,14 @@ class ConfMatLayer(nn.Module):
         self.est_cr = est_cr # Whether estimate copy rates or not
         self.reweight = reweight # Whether reweight losses according to copy rates and label counts or not
         self.factor = factor # reweighting factor that accounts for sparsity
-        w_init = torch.tensor(np.stack([6.*np.eye(k)-5. for i in range(m)]), dtype=torch.float32)
-        theta_init = torch.tensor(np.ones(m) * -5, dtype=torch.float32)
-        self.p = nn.Parameter(w_init, requires_grad=True)
+        b_init = torch.tensor(np.stack([6.*np.eye(k)-5. for i in range(m)]), dtype=torch.float32)
+        self.b = nn.Parameter(b_init, requires_grad=True)
         if self.est_cr:
+            theta_init = torch.tensor(np.ones(m) * -5, dtype=torch.float32)
             self.theta = nn.Parameter(theta_init, requires_grad=True)
     
     def calc_cm(self):
-        rho = F.softplus(self.p)
+        rho = F.softplus(self.b)
         self.confusion_matrices = rho / rho.sum(axis=-1, keepdims=True)
         if self.est_cr:
             self.copyrates = torch.sigmoid(self.theta)
@@ -109,8 +61,8 @@ class ConfMatLayer(nn.Module):
         """
         self.calc_cm()            
         losses_all_users = []
+        preds_true = torch.exp(logsoftmax) # n * k
         for idx, labels_i in enumerate(torch.unbind(labels, axis=1)):
-            preds_true = torch.exp(logsoftmax) # n * k
             preds_user_intrinsic = torch.matmul(preds_true, self.confusion_matrices[idx, :, :])
             if idx == 0:
                 # busy user
@@ -129,7 +81,14 @@ class ConfMatLayer(nn.Module):
         if self.reweight:
             with torch.no_grad():
                 losses_weight = torch.ones(self.m).cuda()
-                if self.reweight == "BOTH":
+                if self.reweight == "GAMMA+BOTH":
+                    losses_weight[0] -= self.copyrates[1:].sum()
+                    losses_weight[0] *= self.factor
+                    est_gamma = torch.tensor([torch.diag(self.confusion_matrices[i]).mean() for i in range(self.m)]).to(self.b.device)
+                    factor_gamma = est_gamma[0] / (est_gamma[1:].mean())
+                    losses_weight[0] *= factor_gamma
+                    # print(factor_gamma)
+                elif self.reweight == "BOTH":
                     losses_weight[0] -= self.copyrates[1:].sum()
                     losses_weight[0] *= self.factor
                 elif self.reweight == "CNT":
@@ -150,7 +109,7 @@ def call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, 
     _, m, k = labels_train.shape
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     patience = 15
-    learning_rate = 0.01
+    learning_rate = 0.001
     scale = 0.01
     save_path = 'model'
     save_path_cm = 'cm_layer'
@@ -209,11 +168,6 @@ def call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, 
         # model = models.CNN_CIFAR(torchvision.models.resnet18(pretrained=True))
         model.to(device)
     
-    if reweight:
-        redundancy = labels_train[0].sum()
-        factor = (redundancy-1) / (m-1)
-    else:
-        factor = None
     confusion_matrices_layer = ConfMatLayer(m, k, est_cr, reweight, factor)
     # confusion_matrices_layer = ConfMatLayer(m, k, est_cr, False, factor) # Hold off reweighting to get better copy prob estimation
     confusion_matrices_layer.to(device)
@@ -261,11 +215,10 @@ def call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, 
                 optimizer_cm.zero_grad()
                 log_softmax = model(inputs)
                 weighted_xe = confusion_matrices_layer.forward(labels, log_softmax)
-                # trace_norm = confusion_matrices_layer.trace_norm()
-                # trace_norm = trace_norm.to(device)
-                # total_loss = weighted_xe + scale * trace_norm
-                # total_loss.backward()
-                weighted_xe.backward()
+                trace_norm = confusion_matrices_layer.trace_norm()
+                trace_norm = trace_norm.to(device)
+                total_loss = weighted_xe + scale * trace_norm
+                total_loss.backward()
                 optimizer_cm.step()
             #%%
             # lr_scheduler.step()
@@ -358,6 +311,34 @@ def plot_result_std_cr(arrays, copy_rate_range, title, ylabel, filename):
 
 #%% Main
 if __name__ == "__main__":
+    #%% Load cifar-10 data
+    # X = np.load("./cifar10/X.npy")
+    # y = np.load("./cifar10/y.npy")
+    # X_test = np.load("./cifar10/X_test.npy")
+    # y_test = np.load("./cifar10/y_test.npy")
+    
+    # k = 10
+    # X = X / 255.0
+    # X_test = X_test / 255.0
+    # y = y.astype(int)
+    # y_test = y_test.astype(int)
+    # y = np.eye(k)[y]
+    # y_test = np.eye(k)[y_test]
+    # X_train, X_vali = X[:45000], X[45000:]
+    # y_train, y_vali = y[:45000], y[45000:]
+    # use_aug = True
+    #%% Load MNIST data
+    X = np.load("./mnist/X.npy")
+    y = np.load("./mnist/y.npy", allow_pickle=True)
+    k = 10
+    X = X / 255.0
+    X = X.reshape(-1, 1, 28, 28)
+    y = y.astype(int)
+    y = np.eye(k)[y]
+    X_train, X_vali, X_test = X[:50000], X[50000:60000], X[60000:]
+    y_train, y_vali, y_test = y[:50000], y[50000:60000], y[60000:]
+    use_aug = False
+
     m = 5 # number of users
     gamma_b = .35 # skill level of the busy user
     gamma_c = .35 # skill level of the other users
@@ -374,6 +355,10 @@ if __name__ == "__main__":
     
     title = "Redundancy:{}, skill level: {}".format(repeat, gamma_c)
     filename = "Copyrate_layer_lossreweight_r_{}_g_{}_ablation".format(repeat, gamma_c).replace('.', '')
+    result_dir = 'result'
+    if not os.path.exists(result_dir):
+        os.mkdir(result_dir)
+    filename = '/'.join(['.', result_dir, filename])
     
     for rep in range(num_rep):
         print("Repetition: {}".format(rep))
@@ -381,9 +366,9 @@ if __name__ == "__main__":
             copy_rates[copy_ids] = copy_rate_value
             print("----------------")
             print("Copy rates: {}".format(copy_rates))
-            conf_b = generate_conf_pairflipper(1, k, gamma_b)
+            conf_b = generate_conf_pairflipper(num_busy, k, gamma_b)
             conf = generate_conf_pairflipper(m, k, gamma_c)
-            conf[:1] = conf_b
+            conf[:num_busy] = conf_b
             labels_train, _, workers_on_example = generate_labels_weight_sparse_copycat(y_train[valid_range], repeat, conf, copy_rates, num_busy)
             labels_vali, _, workers_on_example_vali = generate_labels_weight_sparse_copycat(y_vali, repeat, conf, copy_rates, num_busy)
             
@@ -396,8 +381,8 @@ if __name__ == "__main__":
             print(est_copyrates[1:])
             plot_conf_mat(est_conf, conf)
             
-            print("--------")
             # 2. Reweighting according to both label counts and estimated copy probs
+            print("--------")
             est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
                                                             conf, copy_rates, two_stage=False, use_pretrained=False, model=None, use_aug=use_aug, est_cr=True, reweight="BOTH")
             test_accs[rep, i, 1] = test_acc

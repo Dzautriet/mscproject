@@ -38,6 +38,7 @@ def accuracy(pred, targets):
 def call_train(X_train, valid_range, y_train_corrupt, X_vali, y_vali_corrupt, y_vali, X_test, y_test, use_pretrained=False, model=None, use_aug=False, dataset="mnist"):
     batch_size = 128
     epochs = 100
+    k = y_train_corrupt.shape[-1]
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     patience = 15
     if dataset == "mnist":
@@ -97,9 +98,9 @@ def call_train(X_train, valid_range, y_train_corrupt, X_vali, y_vali_corrupt, y_
         # model = resnet_pytorch.resnet20()
         # model = resnet_pytorch_2.ResNet18()
         if dataset ==  "mnist":
-            model = models.CNN_MNIST()
+            model = models.CNN_MNIST(k)
         elif dataset == "cifar10":
-            model = models.CNN_CIFAR(torchvision.models.resnet18(pretrained=True, progress=True))
+            model = models.CNN_CIFAR(torchvision.models.resnet18(pretrained=True, progress=True), k)
         else:
             pass
         model.to(device)
