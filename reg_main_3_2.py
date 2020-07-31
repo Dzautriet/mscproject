@@ -9,6 +9,7 @@ Reweighting mechanism
 Ablation study: varied skill levels
 """
 
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 import torch

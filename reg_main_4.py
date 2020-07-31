@@ -9,6 +9,7 @@ Reweighting mechanism
 Two-stage grad update
 """
 
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
