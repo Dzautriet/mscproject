@@ -27,7 +27,7 @@ import argparse
 
 def plot_result_std_cr(arrays, copy_rate_range, title, ylabel, filename):
     """
-    arrays: num_rep * num_copyrates * 3
+    arrays: num_rep * num_copyrates * 6
     standard deviation
     """
     avg = arrays.mean(axis=0)
