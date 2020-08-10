@@ -7,6 +7,7 @@ Created on Wed Jul  8 18:58:01 2020
 Copycat scenario: systematic comparison
 Reweighting mechanism
 Ablation study: varied skill levels
+DEPRECATED as of 10 Aug
 """
 
 import os
@@ -127,7 +128,7 @@ if __name__ == "__main__":
             conf_errors[rep, i, 1] = conf_error
             cp_errors[rep, i, 1] = cp_error
             
-            # 3. Reweghting according to estimated copy probs only
+            # 3. Reweighting according to estimated copy probs only
             print("--------")
             est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
                                                             conf, copy_rates, two_stage=True, use_pretrained=False, model=None, use_aug=use_aug, est_cr=True, reweight="CP")

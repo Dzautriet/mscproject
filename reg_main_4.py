@@ -113,7 +113,7 @@ if __name__ == "__main__":
     copy_rates = np.zeros(m)
     copy_ids = np.arange(1, 2) # user no.1 is the copycat
     # copy_rate_range = np.arange(0.1, 1.0, 0.2)
-    copy_rate_range = np.arange(0.0, 1.1, 0.25)
+    copy_rate_range = np.arange(0.0, 1.01, 0.25)
     num_rep = 3 # repetition
     mbem_round = 1
     test_accs = np.zeros((num_rep, len(copy_rate_range), 4)) # four algorithms to compare
@@ -121,10 +121,10 @@ if __name__ == "__main__":
     cp_errors = np.zeros((num_rep, len(copy_rate_range), 4))
     
     title = "Redundancy:{}, skill level: {} & {}".format(repeat, gamma_b, gamma_c)
+    filename = "{}_Copyrate_layer_lossreweight_r_{}_g_{}_{}_4comp_2stage_partial".format(dataset, repeat, gamma_b, gamma_c).replace('.', '')
     result_dir = 'result'
     if not os.path.exists(result_dir):
         os.mkdir(result_dir)
-    filename = "{}_Copyrate_layer_lossreweight_r_{}_g_{}_{}_4comp_2stage_partial".format(dataset, repeat, gamma_b, gamma_c).replace('.', '')
     filename = '/'.join(['.', result_dir, filename])
     
     for rep in range(num_rep):
