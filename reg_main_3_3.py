@@ -45,8 +45,8 @@ def plot_result_std_cr(arrays, copy_rate_range, title, ylabel, filename):
     plt.xlabel("Copy probability")
     plt.ylabel(ylabel)
     plt.legend(bbox_to_anchor=(1, 1), loc="upper left")
-    plt.savefig(filename+".png", bbox_inches='tight')
-    np.save(filename+".npy", arrays)
+    # plt.savefig(filename+".png", bbox_inches='tight')
+    # np.save(filename+".npy", arrays)
     plt.show()
     
 #%% Main
@@ -92,21 +92,21 @@ if __name__ == "__main__":
         raise ValueError("Invalid value for dataset!")
 
     m = 5 # number of users
-    gamma_b = .35 # skill level of the busy user
-    gamma_c = .35 # skill level of the other users
+    gamma_b = .1 # skill level of the busy user
+    gamma_c = .5 # skill level of the other users
 #     gamma_b = args.gamma_b
 #     gamma_c = args.gamma_c
     repeat = 2 # redundancy
     if dataset == 'cifar10':
         valid_range = np.arange(45000)
     elif dataset == 'mnist':
-        valid_range = np.arange(50000) # max. 50000
+        valid_range = np.arange(5000) # max. 50000
     else:
         pass
     print("Training on {} samples.".format(len(valid_range)))
     num_busy = 1 # 1 by default, starting from No.0
     copy_rates = np.zeros(m)
-    copy_ids = np.arange(1, 2) # user no.1 is the copycat
+    copy_ids = np.arange(1, 3) # user no.1 is the copycat
     copy_rate_range = np.arange(0.0, 1.01, 0.25)
     num_rep = 3 # repetition
     test_accs = np.zeros((num_rep, len(copy_rate_range), 6)) # six algorithms to compare
@@ -114,7 +114,7 @@ if __name__ == "__main__":
     cp_errors = np.zeros((num_rep, len(copy_rate_range), 6))
     
     title = "Redundancy:{}, skill level: {} & {}".format(repeat, gamma_b, gamma_c)
-    filename = "Gamma_reweight_r_{}_g_{}_{}_ablation".format(repeat, gamma_b, gamma_c).replace('.', '')
+    filename = "Gamma_reweight_r_{}_g_{}_{}_allcopy_ablation".format(repeat, gamma_b, gamma_c).replace('.', '')
     result_dir = 'result'
     if not os.path.exists(result_dir):
         os.mkdir(result_dir)
@@ -150,34 +150,34 @@ if __name__ == "__main__":
             plot_conf_mat(est_conf, conf)
             
             # 2. Reweighting according to both label counts and estimated copy probs
-            print("Ablating: gamma reweighting")
-            est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
-                                                            conf, copy_rates, two_stage=True, use_pretrained=True, model=init_model, use_aug=use_aug, est_cr=True, reweight="BOTH")
-            test_accs[rep, i, 1] = test_acc
-            conf_errors[rep, i, 1] = conf_error
-            cp_errors[rep, i, 1] = cp_error
-            print(est_copyrates[1:])
-            plot_conf_mat(est_conf, conf)
+            # print("Ablating: gamma reweighting")
+            # est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
+            #                                                 conf, copy_rates, two_stage=True, use_pretrained=True, model=init_model, use_aug=use_aug, est_cr=True, reweight="BOTH")
+            # test_accs[rep, i, 1] = test_acc
+            # conf_errors[rep, i, 1] = conf_error
+            # cp_errors[rep, i, 1] = cp_error
+            # print(est_copyrates[1:])
+            # plot_conf_mat(est_conf, conf)
             
-            # 3. Reweighting according to gamma + label counts
-            print("Ablating: copy probs")
-            est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
-                                                            conf, copy_rates, two_stage=False, use_pretrained=True, model=init_model, conf_init=None, use_aug=use_aug, est_cr=True, reweight="GAMMA+CNT")
-            test_accs[rep, i, 2] = test_acc
-            conf_errors[rep, i, 2] = conf_error
-            cp_errors[rep, i, 2] = cp_error
-            print(est_copyrates[1:])
-            plot_conf_mat(est_conf, conf)
+            # # 3. Reweighting according to gamma + label counts
+            # print("Ablating: copy probs")
+            # est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
+            #                                                 conf, copy_rates, two_stage=False, use_pretrained=True, model=init_model, conf_init=None, use_aug=use_aug, est_cr=True, reweight="GAMMA+CNT")
+            # test_accs[rep, i, 2] = test_acc
+            # conf_errors[rep, i, 2] = conf_error
+            # cp_errors[rep, i, 2] = cp_error
+            # print(est_copyrates[1:])
+            # plot_conf_mat(est_conf, conf)
             
-            # 4. Reweighting according to gamma + estimated copy probs
-            print("Ablating: label counts")
-            est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
-                                                            conf, copy_rates, two_stage=False, use_pretrained=True, model=init_model, conf_init=None, use_aug=use_aug, est_cr=True, reweight="GAMMA+CP")
-            test_accs[rep, i, 3] = test_acc
-            conf_errors[rep, i, 3] = conf_error
-            cp_errors[rep, i, 3] = cp_error
-            print(est_copyrates[1:])
-            plot_conf_mat(est_conf, conf)
+            # # 4. Reweighting according to gamma + estimated copy probs
+            # print("Ablating: label counts")
+            # est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
+            #                                                 conf, copy_rates, two_stage=False, use_pretrained=True, model=init_model, conf_init=None, use_aug=use_aug, est_cr=True, reweight="GAMMA+CP")
+            # test_accs[rep, i, 3] = test_acc
+            # conf_errors[rep, i, 3] = conf_error
+            # cp_errors[rep, i, 3] = cp_error
+            # print(est_copyrates[1:])
+            # plot_conf_mat(est_conf, conf)
             
             # 5. One stage
             print("Ablating: two-stage")
@@ -189,15 +189,15 @@ if __name__ == "__main__":
             print(est_copyrates[1:])
             plot_conf_mat(est_conf, conf)
             
-            # 6. Train from scratch
-            print("Ablating: pretraining on weighted majority votes")
-            est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
-                                                            conf, copy_rates, two_stage=True, use_pretrained=False, model=None, conf_init=None, use_aug=use_aug, est_cr=True, reweight="GAMMA+BOTH")
-            test_accs[rep, i, 5] = test_acc
-            conf_errors[rep, i, 5] = conf_error
-            cp_errors[rep, i, 5] = cp_error
-            print(est_copyrates[1:])
-            plot_conf_mat(est_conf, conf)
+            # # 6. Train from scratch
+            # print("Ablating: pretraining on weighted majority votes")
+            # est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
+            #                                                 conf, copy_rates, two_stage=True, use_pretrained=False, model=None, conf_init=None, use_aug=use_aug, est_cr=True, reweight="GAMMA+BOTH")
+            # test_accs[rep, i, 5] = test_acc
+            # conf_errors[rep, i, 5] = conf_error
+            # cp_errors[rep, i, 5] = cp_error
+            # print(est_copyrates[1:])
+            # plot_conf_mat(est_conf, conf)
             
     plot_result_std_cr(test_accs, copy_rate_range, title=title, ylabel="Test accuracy", filename=filename+"_testacc")
     plot_result_std_cr(cp_errors, copy_rate_range, title=title, ylabel="Copy probability estimation error", filename=filename+"_cperror")

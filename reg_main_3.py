@@ -6,7 +6,7 @@ Created on Mon Jul  6 18:37:32 2020
 
 Copycat scenario: systematic comparison (4 algorithms)
 Reweighting mechanism
-Ablation study core
+Core of ablation study
 Gamma reweighting added
 Pretraining on weighted majority vote
 """
@@ -106,12 +106,14 @@ class ConfMatLayer(nn.Module):
                     est_gamma = torch.tensor([torch.diag(self.confusion_matrices[i]).mean() for i in range(self.m)]).to(self.b.device)
                     factor_gamma = est_gamma[0] / (est_gamma[1:].mean())
                     if factor_gamma < 1.5:
-                        losses_weight[0] -= self.copyrates[1:].sum()
+                        # losses_weight[0] -= self.copyrates[1:].sum()
+                        losses_weight[0] -= torch.clamp(self.copyrates[1:].sum(), 0, 1) # changed from sum to mean ,added clipping
                         losses_weight[0] *= self.factor
                     else:
                         losses_weight[0] *= factor_gamma
                 elif self.reweight == "BOTH":
-                    losses_weight[0] -= self.copyrates[1:].sum()
+                    # losses_weight[0] -= self.copyrates[1:].sum()
+                    losses_weight[0] -= torch.clamp(self.copyrates[1:].sum(), 0, 1)
                     losses_weight[0] *= self.factor
                 elif self.reweight == "GAMMA+CNT":
                     est_gamma = torch.tensor([torch.diag(self.confusion_matrices[i]).mean() for i in range(self.m)]).to(self.b.device)
@@ -124,10 +126,10 @@ class ConfMatLayer(nn.Module):
                     est_gamma = torch.tensor([torch.diag(self.confusion_matrices[i]).mean() for i in range(self.m)]).to(self.b.device)
                     factor_gamma = est_gamma[0] / (est_gamma[1:].mean())
                     if factor_gamma < 1.5:
-                        losses_weight[0] -= self.copyrates[1:].sum()
-                        losses_weight[0] *= self.factor
+                        # losses_weight[0] -= self.copyrates[1:].sum()
+                        losses_weight[0] -= torch.clamp(self.copyrates[1:].sum(), 0, 1)
                     else:
-                        losses_weight[0] -= self.copyrates[1:].sum()
+                        losses_weight[0] *= factor_gamma
                 else:
                     raise ValueError("Illegal value for reweight!")
                 losses_weight = torch.clamp(losses_weight, 1e-3)
@@ -433,7 +435,7 @@ if __name__ == "__main__":
     cp_errors = np.zeros((num_rep, len(copy_rate_range), 4))
     
     title = "Redundancy:{}, skill level: {} & {}".format(repeat, gamma_b, gamma_c)
-    filename = "{}_Gamma_reweight_r_{}_g_{}_{}_4comp_2stage_partial".format(dataset, repeat, gamma_b, gamma_c).replace('.', '')
+    filename = "{}_Gamma_reweight_r_{}_g_{}_{}_4comp_1copy_2stage_full".format(dataset, repeat, gamma_b, gamma_c).replace('.', '')
     result_dir = 'result'
     if not os.path.exists(result_dir):
         os.mkdir(result_dir)
