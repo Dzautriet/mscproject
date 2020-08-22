@@ -106,7 +106,7 @@ if __name__ == "__main__":
     print("Training on {} samples.".format(len(valid_range)))
     num_busy = 1 # 1 by default, starting from No.0
     copy_rates = np.zeros(m)
-    copy_ids = np.arange(1, 3) # user no.1 is the copycat
+    copy_ids = np.arange(1, 2) # user no.1 is the copycat
     copy_rate_range = np.arange(0.0, 1.01, 0.25)
     num_rep = 3 # repetition
     test_accs = np.zeros((num_rep, len(copy_rate_range), 6)) # six algorithms to compare

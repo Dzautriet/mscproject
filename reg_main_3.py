@@ -110,7 +110,8 @@ class ConfMatLayer(nn.Module):
                         losses_weight[0] -= torch.clamp(self.copyrates[1:].sum(), 0, 1) # changed from sum to mean ,added clipping
                         losses_weight[0] *= self.factor
                     else:
-                        losses_weight[0] *= factor_gamma
+                        # losses_weight[0] *= factor_gamma
+                        pass
                 elif self.reweight == "BOTH":
                     # losses_weight[0] -= self.copyrates[1:].sum()
                     losses_weight[0] -= torch.clamp(self.copyrates[1:].sum(), 0, 1)
@@ -121,7 +122,8 @@ class ConfMatLayer(nn.Module):
                     if factor_gamma < 1.5:
                         losses_weight[0] *= self.factor
                     else:
-                        losses_weight[0] *= factor_gamma
+                        # losses_weight[0] *= factor_gamma
+                        pass
                 elif self.reweight == "GAMMA+CP":
                     est_gamma = torch.tensor([torch.diag(self.confusion_matrices[i]).mean() for i in range(self.m)]).to(self.b.device)
                     factor_gamma = est_gamma[0] / (est_gamma[1:].mean())
@@ -129,7 +131,8 @@ class ConfMatLayer(nn.Module):
                         # losses_weight[0] -= self.copyrates[1:].sum()
                         losses_weight[0] -= torch.clamp(self.copyrates[1:].sum(), 0, 1)
                     else:
-                        losses_weight[0] *= factor_gamma
+                        # losses_weight[0] *= factor_gamma
+                        pass
                 else:
                     raise ValueError("Illegal value for reweight!")
                 losses_weight = torch.clamp(losses_weight, 1e-3)
@@ -467,7 +470,7 @@ if __name__ == "__main__":
             # 2. Reweighting according to gamma + both label counts and estimated copy probs
             print("--------")
             est_conf, est_copyrates, test_acc, conf_error, cp_error = call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, X_test, y_test, 
-                                                            conf, copy_rates, two_stage=True, use_pretrained=True, model=init_model, conf_init=None, use_aug=use_aug, est_cr=True, reweight="GAMMA+BOTH", dataset=dataset)
+                                                            conf, copy_rates, two_stage=False, use_pretrained=True, model=init_model, conf_init=None, use_aug=use_aug, est_cr=True, reweight="GAMMA+BOTH", dataset=dataset)
             test_accs[rep, i, 0] = test_acc
             conf_errors[rep, i, 0] = conf_error
             cp_errors[rep, i, 0] = cp_error
