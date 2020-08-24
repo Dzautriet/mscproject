@@ -340,7 +340,6 @@ def call_train(X_train, valid_range, labels_train, X_vali, labels_vali, y_vali, 
             
             # plot_conf_mat(est_conf, conf)
             
-        
         if early_stopped:
             break
         
