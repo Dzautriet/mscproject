@@ -437,7 +437,7 @@ if __name__ == "__main__":
     cp_errors = np.zeros((num_rep, len(copy_rate_range), 4))
     
     title = "Redundancy:{}, skill level: {} & {}".format(repeat, gamma_b, gamma_c)
-    filename = "{}_Gamma_reweight_r_{}_g_{}_{}_4comp_1copy_2stage_full".format(dataset, repeat, gamma_b, gamma_c).replace('.', '')
+    filename = "{}_Gamma_reweight_r_{}_g_{}_{}_4comp_1copy_1stage_full".format(dataset, repeat, gamma_b, gamma_c).replace('.', '')
     result_dir = 'result'
     if not os.path.exists(result_dir):
         os.mkdir(result_dir)
