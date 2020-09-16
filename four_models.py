@@ -106,7 +106,7 @@ if __name__ == "__main__":
     if dataset == 'cifar10':
         valid_range = np.arange(45000)
     elif dataset == 'mnist':
-        valid_range = np.arange(5000) # max. 50000
+        valid_range = np.arange(50000) # max. 50000
     else:
         pass
     print("Training on {} samples.".format(len(valid_range)))
@@ -147,7 +147,6 @@ if __name__ == "__main__":
             test_accs[rep, i, 2] = test_acc
             # conf_errors[rep, i, 2] = conf_error # not applicable
             # cp_errors[rep, i, 2] = cp_error # not applicable
-            # _, _, est_conf = posterior_distribution(labels_train, pred_train, workers_on_example)
             # plot_conf_mat_h(est_conf, conf)
 
             # 2. Reweighting according to gamma + both label counts and estimated copy probs
