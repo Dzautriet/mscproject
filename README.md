@@ -13,7 +13,7 @@ This repository contains the source code of my research project collaborated wit
 
 Datasets are not included in this repo. Please
 - download MNIST dataset from [here](https://drive.google.com/drive/folders/1LiEqIyZbTOmNKRDHgt-qxTQgyGkJl0Jn?usp=sharing) and save them as `./mnist/X.npy` and `./mnist/y.npy`;
-- download CIFAR-10 dataset from [here](https://drive.google.com/drive/folders/1B43VTfMrJ4GPA_3O5L3HzeO0q0umtSFf?usp=sharing) and save them as `./cifar10/X.npy`, `./cifar10/y.npy`, `./cifar10/X_test.npy` and `./cifar10/y_test.npy`;
+- download CIFAR-10 dataset from [here](https://drive.google.com/drive/folders/1B43VTfMrJ4GPA_3O5L3HzeO0q0umtSFf?usp=sharing) and save them as `./cifar10/X.npy`, `./cifar10/y.npy`, `./cifar10/X_test.npy` and `./cifar10/y_test.npy`.
 
 ## Run experiment
 
@@ -23,7 +23,9 @@ Run `four_models.py` from your terminal with arguments specifying skill levels (
 - Vanilla NN
 - Weighted majority vote
 - MBEM
-`run_experiment.cmd` provides an example of multiple runs. By default, plotting is disabled in `four_models.py`. You can uncomment line 56 and `# plot_conf_mat_h(est_conf, conf)` to enable plotting confusion matrix estimates and final result.
+`run_experiment.cmd` provides an example of multiple runs. 
+
+By default, plotting is disabled in `four_models.py`. You can uncomment line 56 and `# plot_conf_mat_h(est_conf, conf)` to enable plotting confusion matrix estimates and final result.
 
 `ablation_study.py` is for ablation study.
 

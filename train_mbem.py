@@ -3,6 +3,12 @@
 Created on Wed Feb 12 17:02:43 2020
 
 @author: Zhe Cao
+
+Reimplemention of MBEM
+(Khetan, A., Lipton, Z. C. & Anandkumar, A. (2018), 
+Learning from noisy singly-labeled data, 
+in ‘International Conference on Learning Representations’.)
+(https://github.com/khetan2/MBEM)
 """
 
 import numpy as np

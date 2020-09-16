@@ -20,7 +20,7 @@ from torch.utils.data import TensorDataset, Dataset, DataLoader
 from workers import *
 from utils import *
 from train_mbem import call_train as call_train_mbem
-from MBEM import posterior_distribution
+from mbem import posterior_distribution
 from train import call_train
 import models
 import gc
