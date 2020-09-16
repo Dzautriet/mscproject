@@ -63,11 +63,41 @@ def plot_conf_mat(est_conf, conf):
     for row, axe in enumerate(axes):
         ax_0, ax_1 = axe
         ax_0.imshow(est_conf[row], cmap='Blues', vmin=0, vmax=1)
-        ax_0.set_title("Estimated CM \nfor worker "+str(row))
+        ax_0.set_title("Estimated CM \nfor labeller "+str(row))
         ax_0.axis('off')
         ax_1.imshow(conf[row], cmap='Blues', vmin=0, vmax=1)
-        ax_1.set_title("Ground Truth CM \nfor worker "+str(row))
+        ax_1.set_title("Ground truth CM \nfor labeller "+str(row))
         ax_1.axis('off')
+    plt.show()
+    # mse = ((est_conf - conf)**2).mean()
+    # print("Mean squared error: {:.5f}".format(mse))
+    mean_diff = np.mean([np.linalg.norm(est_conf[i] - conf[i]) for i in range(m)])
+    print("Mean CM est error: {:.4f}.".format(mean_diff))
+    return mean_diff
+
+def plot_conf_mat_h(est_conf, conf):
+    """
+    Plot estimated and ground truth confusion matrices
+    Horizontally
+    """
+    m = conf.shape[0]
+    fig, axes = plt.subplots(nrows=2, ncols=m, figsize=(2.1*m, 2*2))
+    fig.tight_layout(pad=1.)
+    axes = np.swapaxes(axes, 1, 0)
+    fontsize = 14
+    for row, axe in enumerate(axes):
+        ax_0, ax_1 = axe
+        im = ax_0.imshow(conf[row], cmap='Blues', vmin=0, vmax=1)
+        ax_0.set_title("Ground truth CM \nof labeller "+str(row), fontsize=fontsize)
+        ax_0.axis('off')
+        ax_1.imshow(est_conf[row], cmap='Blues', vmin=0, vmax=1)
+        ax_1.set_title("Estimated CM \nof labeller "+str(row), fontsize=fontsize)
+        ax_1.axis('off')
+    # fig.subplots_adjust(right=0.8)
+    cbar_ax = fig.add_axes([1.0, 0.1, 0.01, 0.8])
+    cb = fig.colorbar(im, cax=cbar_ax, )
+    cb.ax.tick_params(labelsize=fontsize)
+    # fig.colorbar(im)
     plt.show()
     # mse = ((est_conf - conf)**2).mean()
     # print("Mean squared error: {:.5f}".format(mse))
